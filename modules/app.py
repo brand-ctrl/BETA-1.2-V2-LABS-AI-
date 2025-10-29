@@ -7,7 +7,6 @@ st.markdown("""
 <style>
 :root{ --bg1:#e9f5ff; --bg2:#e9f5ff; --ink:#0f172a; --line:rgba(15,23,42,.08); }
 html, body, .stApp, [class*="css"]{
-  background: linear-gradient(180deg,var(--bg1),var(--bg2)) !important;
   color:var(--ink); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 .v2-header{ display:flex; align-items:center; justify-content:flex-start; padding:18px 6% 4px; }
