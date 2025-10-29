@@ -1,8 +1,3 @@
-from pathlib import Path
-import zipfile
-import re
-
-# Caminho do app.py anterior
 src = Path("/mnt/data/app.py")
 dst_dir = Path("/mnt/data/app_header_reduced")
 dst_dir.mkdir(exist_ok=True)
