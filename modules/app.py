@@ -1,24 +1,6 @@
 
 import streamlit as st
 
-
-}
-.v2-header{ display:flex; align-items:center; justify-content:flex-start; padding:18px 6% 4px; }
-.v2-header img{ width:300px; height:auto; display:block; }
-.block-container{ padding-top:0 !important; max-width:1280px; }
-h1,h2,h3{ font-weight:800; letter-spacing:.4px; margin:0 0 10px; }
-.hr{ border:0; border-top:1px solid var(--line); margin: 14px 0 18px; }
-.v2-card{ display:flex; gap:16px; align-items:center; padding:16px; border-radius:18px;
-         background: rgba(173,216,255,.30);
-         box-shadow: 0 10px 26px rgba(173,216,255,.18); }
-.v2-card:hover{ box-shadow: 0 12px 30px rgba(173,216,255,.26); transform: translateY(-1px); }
-.v2-icon{ width:94px; height:94px; display:flex; align-items:center; justify-content:center; border-radius:16px;
-          background: rgba(21,170,255,.10); flex:0 0 94px; }
-.v2-icon img{ width:64px; height:64px; object-fit:contain; }
-.v2-title{ margin:0; font-size:18px; font-weight:800; color:var(--ink); }
-.v2-desc{ margin:2px 0 0; color:#445267; font-size:14px; }
-.v2-btn .stButton>button{ border-radius:10px; }
-.section{ margin:10px 6%; }
 </style>
 <div class="v2-header">
   <img src="assets/logo_v2labs.svg" alt="V2 Labs">
