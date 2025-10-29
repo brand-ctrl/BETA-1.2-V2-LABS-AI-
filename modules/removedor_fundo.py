@@ -2,35 +2,28 @@ import streamlit as st
 from PIL import Image
 import io, os, shutil, zipfile, base64
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from zipfile import ZipFile, BadZipFile
+try:
+    from rembg import remove, new_session
+    _HAS_REMBG = True
+except Exception:
+    _HAS_REMBG = False
 
-def extract_all(zip_file, extract_to):
-    """
-    Extrai o conteúdo de um ZIP (inclusive subpastas),
-    preservando toda a estrutura de diretórios.
-    """
-    for member in zip_file.infolist():
-        try:
-            zip_file.extract(member, extract_to)
-        except Exception as e:
-            st.warning(f"Não foi possível extrair {member.filename}: {e}")
 
-# ====== Upload e extração ======
-for f in files:
-    if f.name.lower().endswith(".zip"):
-        try:
-            with ZipFile(io.BytesIO(f.read())) as z:
-                extract_all(z, INP)
-        except BadZipFile:
-            st.error(f"❌ ZIP inválido: {f.name}")
-    else:
-        # Cria o arquivo individual no diretório de entrada
-        file_path = os.path.join(INP, f.name)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, "wb") as out:
-            out.write(f.read())
+def _play_ping(ping_b64: str):
+    st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
 
+
+def render(ping_b64: str):
+    # ====== CARREGAR IMAGEM COMO BASE64 ======
+    banner_path = "assets/removedor_banner.png"
+    try:
+        with open(banner_path, "rb") as f:
+            b64_banner = base64.b64encode(f.read()).decode("utf-8")
+    except FileNotFoundError:
+        st.error("❌ Imagem de banner não encontrada em 'assets/removedor_banner.png'")
+        st.stop()
 
     # ====== CSS GLOBAL ======
     st.markdown("""
@@ -149,20 +142,33 @@ for f in files:
     os.makedirs(INP, exist_ok=True)
     os.makedirs(OUT, exist_ok=True)
 
+    # ====== EXTRAÇÃO COMPLETA (ZIP COM SUBPASTAS) ======
     from zipfile import ZipFile, BadZipFile
+
+    def extract_all(zip_file, extract_to):
+        """Extrai ZIP incluindo subpastas preservando estrutura"""
+        for member in zip_file.infolist():
+            try:
+                zip_file.extract(member, extract_to)
+            except Exception as e:
+                st.warning(f"Não foi possível extrair {member.filename}: {e}")
+
     for f in files:
         if f.name.lower().endswith(".zip"):
             try:
                 with ZipFile(io.BytesIO(f.read())) as z:
-                    z.extractall(INP)
+                    extract_all(z, INP)
             except BadZipFile:
-                st.error(f"ZIP inválido: {f.name}")
+                st.error(f"❌ ZIP inválido: {f.name}")
         else:
-            open(os.path.join(INP, f.name), "wb").write(f.read())
+            file_path = os.path.join(INP, f.name)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "wb") as out:
+                out.write(f.read())
 
     paths = [p for p in Path(INP).rglob("*") if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")]
     if not paths:
-        st.warning("Nenhuma imagem encontrada.")
+        st.warning("Nenhuma imagem válida foi encontrada dentro das pastas enviadas.")
         st.stop()
 
     session = new_session(model)
@@ -216,6 +222,7 @@ for f in files:
             except Exception:
                 st.image(out_b, caption=f"DEPOIS — {name}", use_column_width=True)
 
+    # ====== CRIAR ZIP FINAL ======
     zbytes = io.BytesIO()
     with zipfile.ZipFile(zbytes, "w", zipfile.ZIP_DEFLATED) as z:
         for root, _, files in os.walk(OUT):
@@ -224,6 +231,7 @@ for f in files:
                 arc = os.path.relpath(fp, OUT)
                 z.write(fp, arc)
     zbytes.seek(0)
+
     st.success("✅ Remoção de fundo concluída!")
     _play_ping(ping_b64)
     st.download_button(
