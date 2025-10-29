@@ -1,38 +1,30 @@
-# Create a compact project zip with app.py + modules + assets (placeholders) and requirements.txt
-
-import os, io, zipfile, textwrap, base64, json, pathlib
+# Re-run creation of the compact project zip
+import os, io, zipfile, textwrap, base64
 
 root = "/mnt/data/v2labs_suite"
-os.makedirs(root, exist_ok=True)
 os.makedirs(f"{root}/modules", exist_ok=True)
 os.makedirs(f"{root}/assets", exist_ok=True)
 
-# --- app.py ---
-app_py = textwrap.dedent(r"""
+app_py = """
 import streamlit as st
 
 st.set_page_config(page_title="V2 LABS AI BETA 1.1", page_icon="assets/logo_v2labs.svg", layout="wide")
 
-# ========== Global Styles (compact) ==========
-st.markdown("""
+st.markdown(\"\"\"
 <style>
 :root{ --bg1:#e9f5ff; --bg2:#e9f5ff; --ink:#0f172a; --line:rgba(15,23,42,.08); }
 html, body, .stApp, [class*="css"]{
   background: linear-gradient(180deg,var(--bg1),var(--bg2)) !important;
   color:var(--ink); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
-/* header */
 .v2-header{ display:flex; align-items:center; justify-content:flex-start; padding:18px 6% 4px; }
 .v2-header img{ width:300px; height:auto; display:block; }
-/* container + headings */
 .block-container{ padding-top:0 !important; max-width:1280px; }
 h1,h2,h3{ font-weight:800; letter-spacing:.4px; margin:0 0 10px; }
 .hr{ border:0; border-top:1px solid var(--line); margin: 14px 0 18px; }
-/* cards home */
 .v2-card{ display:flex; gap:16px; align-items:center; padding:16px; border-radius:18px;
-         background: rgba(173,216,255,.30); /* azul mais opaco */
-         box-shadow: 0 10px 26px rgba(173,216,255,.18);
-}
+         background: rgba(173,216,255,.30);
+         box-shadow: 0 10px 26px rgba(173,216,255,.18); }
 .v2-card:hover{ box-shadow: 0 12px 30px rgba(173,216,255,.26); transform: translateY(-1px); }
 .v2-icon{ width:94px; height:94px; display:flex; align-items:center; justify-content:center; border-radius:16px;
           background: rgba(21,170,255,.10); flex:0 0 94px; }
@@ -42,18 +34,15 @@ h1,h2,h3{ font-weight:800; letter-spacing:.4px; margin:0 0 10px; }
 .v2-btn .stButton>button{ border-radius:10px; }
 .section{ margin:10px 6%; }
 </style>
-
 <div class="v2-header">
   <img src="assets/logo_v2labs.svg" alt="V2 Labs">
 </div>
-""", unsafe_allow_html=True)
+\"\"\", unsafe_allow_html=True)
 
-# ========== Router ==========
 route = st.session_state.get("route","home")
 
 if route == "home":
     st.markdown('<div class="section"><h2>FERRAMENTAS</h2></div>', unsafe_allow_html=True)
-
     def card(icon, title, desc, btn_label, key):
         st.markdown('<div class="section">', unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1,6,2])
@@ -89,10 +78,9 @@ elif route == "extrator":
 elif route == "removedor":
     from modules.removedor_fundo import render
     render(ping_b64="")
-""")
+"""
 
-# --- modules/conversor_imagem.py ---
-conversor_py = r"""
+conversor_py = """
 import streamlit as st
 from PIL import Image
 import io, os, shutil, zipfile, base64
@@ -112,7 +100,6 @@ def _resize_and_center(img: Image.Image, target_size, bg_color=(242,242,242)):
     return canvas
 
 def render(ping_b64: str):
-    # banner (opcional, se existir)
     b64_banner = None
     try:
         with open("assets/banner_resize.png","rb") as f:
@@ -120,14 +107,14 @@ def render(ping_b64: str):
     except Exception:
         pass
 
-    st.markdown("""
+    st.markdown(\"\"\"
     <style>
     .hero{display:flex;flex-direction:column;align-items:flex-start;margin: 10px 6%;}
     .hero h1{font-size:28px;font-weight:800;margin:0 0 14px}
     .hero .ph{width:500px;height:500px;border-radius:16px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.08)}
     .hero .ph img{width:100%;height:100%;object-fit:cover}
     </style>
-    """, unsafe_allow_html=True)
+    \"\"\", unsafe_allow_html=True)
 
     st.markdown('<div class="hero"><h1>CONVERSOR DE IMAGEM</h1>' +
                 (f'<div class="ph"><img src="data:image/png;base64,{b64_banner}"></div>' if b64_banner else '') +
@@ -192,7 +179,6 @@ def render(ping_b64: str):
             pv.save(prev_io, format="WEBP", quality=90); mime="image/webp"
         return rel.as_posix(), prev_io.getvalue(), mime
 
-    from concurrent.futures import ThreadPoolExecutor, as_completed
     with ThreadPoolExecutor(max_workers=8) as ex:
         fut=[ex.submit(worker,p) for p in paths]; tot=len(fut)
         for i,f in enumerate(as_completed(fut),1):
@@ -215,8 +201,7 @@ def render(ping_b64: str):
     st.download_button("📦 Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
 """
 
-# --- modules/extrair_imagens_csv.py ---
-extrair_py = r"""
+extrair_py = """
 import streamlit as st
 import requests, pandas as pd, re, os, zipfile, concurrent.futures
 
@@ -330,8 +315,7 @@ def render(ping_b64:str):
         st.success("🎉 Exportação concluída!")
 """
 
-# --- modules/removedor_fundo.py ---
-removedor_py = r"""
+removedor_py = """
 import streamlit as st
 from PIL import Image
 import io, os, shutil, zipfile, base64
@@ -345,7 +329,6 @@ except Exception:
     _HAS_REMBG=False
 
 def render(ping_b64:str):
-    # Banner (inline, se existir)
     b64_banner=None
     try:
         with open("assets/removedor_banner.png","rb") as f:
@@ -353,30 +336,27 @@ def render(ping_b64:str):
     except Exception:
         pass
 
-    st.markdown("""
+    st.markdown(\"\"\"
     <style>
     .hero{display:flex;flex-direction:column;align-items:flex-start;margin:10px 6%}
     .hero h1{font-size:28px;font-weight:800;margin:0 0 14px}
     .hero .ph{width:500px;height:500px;border-radius:16px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.08)}
     .hero .ph img{width:100%;height:100%;object-fit:cover}
     </style>
-    """, unsafe_allow_html=True)
+    \"\"\", unsafe_allow_html=True)
 
     st.markdown('<div class="hero"><h1>REMOVEDOR DE FUNDO</h1>' +
                 (f'<div class="ph"><img src="data:image/png;base64,{b64_banner}"></div>' if b64_banner else '') +
                 '</div>', unsafe_allow_html=True)
 
-    if not _HAS_REMBG:
-        st.error("Biblioteca 'rembg' não encontrada. Instale com: pip install rembg onnxruntime")
-        st.stop()
+    if not _HAS_REMBG: st.error("Biblioteca 'rembg' não encontrada. Instale com: pip install rembg onnxruntime"); st.stop()
 
     with st.expander("⚙️ Configurações avançadas", expanded=False):
         model = st.selectbox("Modelo", ("u2net_human_seg","u2net","isnet-general-use"), index=0)
         st.caption("💡 Dica: 'u2net_human_seg' é ideal para retratos humanos.")
 
     files = st.file_uploader("📂 Envie imagens ou um arquivo ZIP", type=["jpg","jpeg","png","webp","zip"], accept_multiple_files=True)
-    if not files:
-        st.info("👆 Envie suas imagens acima para começar."); st.stop()
+    if not files: st.info("👆 Envie suas imagens acima para começar."); st.stop()
 
     INP, OUT = "rm_in","rm_out"
     shutil.rmtree(INP, ignore_errors=True); shutil.rmtree(OUT, ignore_errors=True)
@@ -391,66 +371,62 @@ def render(ping_b64:str):
         else:
             open(os.path.join(INP, f.name),"wb").write(f.read())
 
-    paths=[p for p in Path(INP).rglob("*") if p.suffix.lower() in (".jpg",".jpeg",".png",".webp")]
-    if not paths: st.warning("Nenhuma imagem encontrada."); st.stop()
+    paths=[p for p in Path(INP).rglob(\"*\") if p.suffix.lower() in (\".jpg\",\".jpeg\",\".png\",\".webp\")]
+    if not paths: st.warning(\"Nenhuma imagem encontrada.\"); st.stop()
 
     session=new_session(model)
     prog=st.progress(0.0); info=st.empty(); previews=[]
 
     def worker(p:Path):
         rel=p.relative_to(INP)
-        raw=open(p,"rb").read()
+        raw=open(p,\"rb\").read()
         out_bytes=remove(raw, session=session)
-        outp=(Path(OUT)/rel).with_suffix(".png")
+        outp=(Path(OUT)/rel).with_suffix(\".png\")
         os.makedirs(outp.parent, exist_ok=True)
-        open(outp,"wb").write(out_bytes)
+        open(outp,\"wb\").write(out_bytes)
         return raw,out_bytes,rel.as_posix()
 
     with ThreadPoolExecutor(max_workers=4) as ex:
         fut=[ex.submit(worker,p) for p in paths]; tot=len(fut)
         for i,f in enumerate(as_completed(fut),1):
             try: previews.append(f.result())
-            except Exception as e: st.error(f"Erro ao processar: {e}")
-            prog.progress(i/tot); info.info(f"Processado {i}/{tot}")
+            except Exception as e: st.error(f\"Erro ao processar: {e}\")
+            prog.progress(i/tot); info.info(f\"Processado {i}/{tot}\")
 
-    st.write("---"); st.subheader("🖼️ Pré-visualização (Antes / Depois)")
-    alpha=st.slider("Comparação de mistura",0,100,50,1); blend=alpha/100.0
+    st.write(\"---\"); st.subheader(\"🖼️ Pré-visualização (Antes / Depois)\")
+    alpha=st.slider(\"Comparação de mistura\",0,100,50,1); blend=alpha/100.0
 
     cols=st.columns(2)
     for orig_b,out_b,name in previews[:3]:
-        with cols[0]: st.image(orig_b, caption=f"ANTES — {name}", use_column_width=True)
+        with cols[0]: st.image(orig_b, caption=f\"ANTES — {name}\", use_column_width=True)
         with cols[1]:
             try:
-                img_o=Image.open(io.BytesIO(orig_b)).convert("RGBA")
-                img_r=Image.open(io.BytesIO(out_b)).convert("RGBA")
+                img_o=Image.open(io.BytesIO(orig_b)).convert(\"RGBA\")
+                img_r=Image.open(io.BytesIO(out_b)).convert(\"RGBA\")
                 w=min(img_o.width,img_r.width); h=min(img_o.height,img_r.height)
                 img_o=img_o.resize((w,h)); img_r=img_r.resize((w,h))
                 blended=Image.blend(img_o,img_r,blend)
-                bio=io.BytesIO(); blended.save(bio, format="PNG"); bio.seek(0)
-                st.image(bio, caption=f"DEPOIS — {name}", use_column_width=True)
+                bio=io.BytesIO(); blended.save(bio, format=\"PNG\"); bio.seek(0)
+                st.image(bio, caption=f\"DEPOIS — {name}\", use_column_width=True)
             except Exception:
-                st.image(out_b, caption=f"DEPOIS — {name}", use_column_width=True)
+                st.image(out_b, caption=f\"DEPOIS — {name}\", use_column_width=True)
 
     zbytes=io.BytesIO()
-    with zipfile.ZipFile(zbytes,"w",zipfile.ZIP_DEFLATED) as z:
+    with zipfile.ZipFile(zbytes,\"w\",zipfile.ZIP_DEFLATED) as z:
         for root,_,files in os.walk(OUT):
             for fn in files:
                 fp=os.path.join(root,fn); arc=os.path.relpath(fp,OUT); z.write(fp,arc)
     zbytes.seek(0)
-    st.success("✅ Remoção de fundo concluída!")
-    st.download_button("📦 Baixar PNGs sem fundo", data=zbytes, file_name="sem_fundo.zip", mime="application/zip", use_container_width=True)
+    st.success(\"✅ Remoção de fundo concluída!\")
+    st.download_button(\"📦 Baixar PNGs sem fundo\", data=zbytes, file_name=\"sem_fundo.zip\", mime=\"application/zip\", use_container_width=True)
 """
 
-# --- assets placeholders ---
-logo_svg = """<svg viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
-<rect rx="12" width="256" height="64" fill="#157aff" opacity=".9"/>
-<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Inter, Arial" font-size="28" fill="#fff">V2 LABS AI</text>
-</svg>"""
-icon_conv = """<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><rect rx="16" width="96" height="96" fill="#8ec7ff"/><path d="M22 48h52" stroke="#fff" stroke-width="10" stroke-linecap="round"/></svg>"""
-icon_ext = """<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><rect rx="16" width="96" height="96" fill="#a7d7ff"/><circle cx="48" cy="48" r="18" fill="#fff"/></svg>"""
-icon_rem = """<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><rect rx="16" width="96" height="96" fill="#7dc8ff"/><path d="M24 60 L48 28 L72 60" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/></svg>"""
+# assets minimal svgs
+logo_svg = '<svg viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg"><rect rx="12" width="256" height="64" fill="#157aff"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Inter, Arial" font-size="28" fill="#fff">V2 LABS AI</text></svg>'
+icon_conv = '<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><rect rx="16" width="96" height="96" fill="#8ec7ff"/><path d="M22 48h52" stroke="#fff" stroke-width="10" stroke-linecap="round"/></svg>'
+icon_ext = '<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><rect rx="16" width="96" height="96" fill="#a7d7ff"/><circle cx="48" cy="48" r="18" fill="#fff"/></svg>'
+icon_rem = '<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><rect rx="16" width="96" height="96" fill="#7dc8ff"/><path d="M24 60 L48 28 L72 60" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/></svg>'
 
-# write files
 open(f"{root}/app.py","w").write(app_py)
 open(f"{root}/modules/conversor_imagem.py","w").write(conversor_py)
 open(f"{root}/modules/extrair_imagens_csv.py","w").write(extrair_py)
@@ -461,10 +437,9 @@ open(f"{root}/assets/icon_extrator.svg","w").write(icon_ext)
 open(f"{root}/assets/icon_removedor.svg","w").write(icon_rem)
 open(f"{root}/requirements.txt","w").write("streamlit\nPillow\nrequests\npandas\nrembg\nonnxruntime\n")
 
-# zip it
 zip_path = "/mnt/data/V2-LABS-compact.zip"
-with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-    for base, _, files in os.walk(root):
+with zipfile.ZipFile(zip_path,"w",zipfile.ZIP_DEFLATED) as z:
+    for base,_,files in os.walk(root):
         for fn in files:
             fp = os.path.join(base, fn)
             z.write(fp, os.path.relpath(fp, root))
