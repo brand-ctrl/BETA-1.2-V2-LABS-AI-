@@ -9,16 +9,7 @@ try:
     _HAS_REMBG = True
 except Exception:
     _HAS_REMBG = False
-# ====== HEADER COM IMAGEM LOCAL ======
-st.markdown("""
-<div class="hero">
-    <img src="assets/removedor_banner.png" alt="background">
-    <div class="hero-overlay">
-        <img src="assets/icon_removedor.svg" alt="icon">
-        <h1>REMOVEDOR DE FUNDO</h1>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+
 
 def _play_ping(ping_b64: str):
     st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
@@ -69,7 +60,11 @@ def render(ping_b64: str):
         width: 100%;
         height: 100%;
         object-fit: cover;
-        filter: brightness(60%);
+        filter: brightness(55%);
+        transition: transform 8s ease;
+    }
+    .hero:hover img {
+        transform: scale(1.05);
     }
     .hero-overlay {
         position: absolute;
@@ -83,7 +78,7 @@ def render(ping_b64: str):
     }
     .hero-overlay img {
         width: 90px;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
         opacity: 0.95;
     }
     .hero-overlay h1 {
@@ -91,14 +86,16 @@ def render(ping_b64: str):
         font-weight: 800;
         letter-spacing: 1px;
         margin: 0;
+        color: #fff;
+        text-shadow: 0px 0px 12px rgba(0,0,0,0.6);
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # ====== HEADER COM IMAGEM DO DRIVE ======
+    # ====== HEADER COM IMAGEM LOCAL ======
     st.markdown("""
     <div class="hero">
-        <img src="https://drive.google.com/uc?export=view&id=1tkzmi4B0IoslX07VuM-v_3TIuHdj3hVb" alt="background">
+        <img src="assets/removedor_banner.png" alt="background">
         <div class="hero-overlay">
             <img src="assets/icon_removedor.svg" alt="icon">
             <h1>REMOVEDOR DE FUNDO</h1>
