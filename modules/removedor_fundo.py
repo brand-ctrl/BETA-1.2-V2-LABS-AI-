@@ -2,32 +2,35 @@ import streamlit as st
 from PIL import Image
 import io, os, shutil, zipfile, base64
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
-try:
-    from rembg import remove, new_session
-    _HAS_REMBG = True
-except Exception:
-    _HAS_REMBG = False
+from zipfile import ZipFile, BadZipFile
 
+def extract_all(zip_file, extract_to):
+    """
+    Extrai o conteúdo de um ZIP (inclusive subpastas),
+    preservando toda a estrutura de diretórios.
+    """
+    for member in zip_file.infolist():
+        try:
+            zip_file.extract(member, extract_to)
+        except Exception as e:
+            st.warning(f"Não foi possível extrair {member.filename}: {e}")
 
-def _play_ping(ping_b64: str):
-    st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
+# ====== Upload e extração ======
+for f in files:
+    if f.name.lower().endswith(".zip"):
+        try:
+            with ZipFile(io.BytesIO(f.read())) as z:
+                extract_all(z, INP)
+        except BadZipFile:
+            st.error(f"❌ ZIP inválido: {f.name}")
+    else:
+        # Cria o arquivo individual no diretório de entrada
+        file_path = os.path.join(INP, f.name)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "wb") as out:
+            out.write(f.read())
 
-
-def _remove_bg_bytes(img_bytes: bytes, session=None) -> bytes:
-    return remove(img_bytes, session=session)
-
-
-def render(ping_b64: str):
-    # ====== CARREGAR IMAGEM COMO BASE64 ======
-    banner_path = "assets/removedor_banner.png"
-    try:
-        with open(banner_path, "rb") as f:
-            b64_banner = base64.b64encode(f.read()).decode("utf-8")
-    except FileNotFoundError:
-        st.error("❌ Imagem de banner não encontrada em 'assets/removedor_banner.png'")
-        st.stop()
 
     # ====== CSS GLOBAL ======
     st.markdown("""
