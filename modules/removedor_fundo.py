@@ -29,11 +29,11 @@ def render(ping_b64: str):
         st.error("❌ Imagem de banner não encontrada em 'assets/removedor_banner.png'")
         st.stop()
 
-    # ====== ESTILO ======
+    # ====== CSS GLOBAL ======
     st.markdown("""
     <style>
     body,[class*="css"] {
-        background-color: #f5f7fa !important;
+        background-color: #f9fafb !important;
         color: #111 !important;
         font-family: 'Inter', sans-serif;
     }
@@ -60,20 +60,23 @@ def render(ping_b64: str):
     .hero {
         position: relative;
         width: 100%;
-        height: 420px;
-        border-radius: 18px;
+        height: 500px;
+        border-radius: 20px;
         overflow: hidden;
         margin-bottom: 40px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
-    .hero img {
-        width: 100%;
-        height: 100%;
+    .hero img.bg {
+        width: 500px;
+        height: 500px;
         object-fit: cover;
-        opacity: 0.45;
+        border-radius: 18px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
     .hero-overlay {
         position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -81,21 +84,19 @@ def render(ping_b64: str):
         text-align: center;
         color: #111;
         z-index: 2;
-        background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.6));
+        background: none;
     }
     .hero-overlay img {
         width: 90px;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         opacity: 0.95;
-        z-index: 3;
     }
     .hero-overlay h1 {
-        font-size: 38px;
+        font-size: 34px;
         font-weight: 800;
         letter-spacing: 0.5px;
         margin: 0;
         color: #111;
-        z-index: 3;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -103,7 +104,7 @@ def render(ping_b64: str):
     # ====== HEADER HERO ======
     st.markdown(f"""
     <div class="hero">
-        <img src="data:image/png;base64,{b64_banner}" alt="background">
+        <img src="data:image/png;base64,{b64_banner}" class="bg" alt="background">
         <div class="hero-overlay">
             <img src="assets/icon_removedor.svg" alt="icon">
             <h1>REMOVEDOR DE FUNDO</h1>
@@ -124,7 +125,7 @@ def render(ping_b64: str):
             index=0,
             help="Escolha o modelo de recorte — o padrão é otimizado para pessoas."
         )
-    st.caption("💡 Dica: 'u2net_human_seg' é ideal para retratos humanos.")
+        st.caption("💡 Dica: 'u2net_human_seg' é ideal para retratos humanos.")
 
     # ====== UPLOAD ======
     files = st.file_uploader(
