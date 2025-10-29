@@ -19,15 +19,6 @@ def _remove_bg_bytes(img_bytes: bytes, session=None) -> bytes:
     return remove(img_bytes, session=session)
 
 
-def render(ping_b64: str):
-    # ====== CARREGAR IMAGEM COMO BASE64 ======
-    banner_path = "assets/removedor_banner.png"
-    try:
-        with open(banner_path, "rb") as f:
-            b64_banner = base64.b64encode(f.read()).decode("utf-8")
-    except FileNotFoundError:
-        st.error("❌ Imagem de banner não encontrada em 'assets/removedor_banner.png'")
-        st.stop()
 
     # ====== CSS GLOBAL ======
     st.markdown("""
