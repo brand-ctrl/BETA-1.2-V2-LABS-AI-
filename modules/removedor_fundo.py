@@ -9,7 +9,16 @@ try:
     _HAS_REMBG = True
 except Exception:
     _HAS_REMBG = False
-
+# ====== HEADER COM IMAGEM LOCAL ======
+st.markdown("""
+<div class="hero">
+    <img src="assets/removedor_banner.png" alt="background">
+    <div class="hero-overlay">
+        <img src="assets/icon_removedor.svg" alt="icon">
+        <h1>REMOVEDOR DE FUNDO</h1>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 def _play_ping(ping_b64: str):
     st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
