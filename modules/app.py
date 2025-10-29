@@ -2,24 +2,6 @@
 import streamlit as st
 
 
-route = st.session_state.get("route","home")
-
-if route == "home":
-    st.markdown('<div class="section"><h2>FERRAMENTAS</h2></div>', unsafe_allow_html=True)
-    def card(icon, title, desc, btn_label, key):
-        st.markdown('<div class="section">', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([1,6,2])
-        with col1:
-            st.markdown(f'<div class="v2-icon"><img src="{icon}"></div>', unsafe_allow_html=True)
-        with col2:
-            st.markdown(f'<div class="v2-card"><div class="v2-icon"><img src="{icon}"></div>'
-                        f'<div><p class="v2-title">{title}</p><p class="v2-desc">{desc}</p></div></div>', unsafe_allow_html=True)
-        with col3:
-            if st.button(btn_label, key=key, use_container_width=True):
-                st.session_state.route = key
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
     card("assets/icon_conversor.svg","CONVERSOR DE IMAGENS",
          "Redimensione para 1080×1080 ou 1080×1920 preenchendo com cor.",
          "Abrir Conversor","conversor")
