@@ -11,30 +11,32 @@ def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     new_w, new_h = max(1, int(w*scale)), max(1, int(h*scale))
     img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-    # Fundo transparente se bg_color for None
+    # Se bg_color for None → manter transparência
     if bg_color is None:
         canvas = Image.new("RGBA", target_size, (0, 0, 0, 0))
     else:
         canvas = Image.new("RGB", target_size, bg_color)
 
     off = ((target_size[0]-new_w)//2, (target_size[1]-new_h)//2)
-    img = img.convert("RGBA")
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
     canvas.paste(img, off, img)
     return canvas
 
 
 def _play_ping(ping_b64: str):
-    if ping_b64:
-        st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
+    st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
 
 
 def render(ping_b64: str):
-    # ====== Banner opcional ======
-    b64_banner = None
+    # ====== Banner ======
     banner_path = "assets/banner_resize.png"
-    if os.path.exists(banner_path):
+    try:
         with open(banner_path, "rb") as f:
             b64_banner = base64.b64encode(f.read()).decode("utf-8")
+    except FileNotFoundError:
+        st.error("❌ Imagem de banner não encontrada em 'assets/banner_resize.png'")
+        st.stop()
 
     # ====== CSS ======
     st.markdown("""
@@ -83,17 +85,14 @@ def render(ping_b64: str):
     """, unsafe_allow_html=True)
 
     # ====== Hero Section ======
-    st.markdown("""
+    st.markdown(f"""
     <div class="hero-container">
         <div class="hero-title">CONVERSOR DE IMAGEM</div>
-    </div>
-    """, unsafe_allow_html=True)
-    if b64_banner:
-        st.markdown(f"""
-        <div class="hero" style="margin-left:10%;">
+        <div class="hero">
             <img src="data:image/png;base64,{b64_banner}" class="bg" alt="banner">
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
     # ====== Configurações ======
     col1, col2 = st.columns(2)
@@ -131,8 +130,7 @@ def render(ping_b64: str):
             except BadZipFile:
                 st.error(f"ZIP inválido: {f.name}")
         else:
-            with open(os.path.join(INP, f.name), "wb") as w:
-                w.write(f.read())
+            open(os.path.join(INP, f.name), "wb").write(f.read())
 
     paths = [p for p in Path(INP).rglob("*") if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")]
     if not paths:
@@ -146,7 +144,8 @@ def render(ping_b64: str):
 
     def worker(p: Path):
         rel = p.relative_to(INP)
-        img = Image.open(p).convert("RGBA")
+        raw = open(p, "rb").read()
+        img = Image.open(io.BytesIO(raw)).convert("RGBA")
         composed = _resize_and_center(img, target, bg_color=bg_rgb)
         outp = (Path(OUT) / rel).with_suffix("." + out_format.lower())
         os.makedirs(outp.parent, exist_ok=True)
@@ -163,20 +162,27 @@ def render(ping_b64: str):
         prev_io = io.BytesIO()
         pv = composed.copy()
         pv.thumbnail((360, 360))
-        mime = f"image/{out_format.lower()}"
-        pv.save(prev_io, format=out_format.upper())
+        if out_format.lower() == "jpg":
+            pv.convert("RGB").save(prev_io, format="JPEG", quality=85)
+            mime = "image/jpeg"
+        elif out_format.lower() == "png":
+            pv.save(prev_io, format="PNG")
+            mime = "image/png"
+        else:
+            pv.save(prev_io, format="WEBP", quality=90)
+            mime = "image/webp"
         return rel.as_posix(), prev_io.getvalue(), mime
 
     with ThreadPoolExecutor(max_workers=8) as ex:
-        futs = [ex.submit(worker, p) for p in paths]
-        total = len(futs)
-        for i, f in enumerate(as_completed(futs), 1):
+        fut = [ex.submit(worker, p) for p in paths]
+        tot = len(fut)
+        for i, f in enumerate(as_completed(fut), 1):
             try:
                 results.append(f.result())
             except Exception as e:
                 st.error(f"Erro ao processar: {e}")
-            prog.progress(i / total)
-            info.info(f"Processado {i}/{total}")
+            prog.progress(i / tot)
+            info.info(f"Processado {i}/{tot}")
 
     st.write("---")
     st.subheader("Pré-visualizações")
@@ -197,12 +203,7 @@ def render(ping_b64: str):
 
     st.success("✅ Conversão concluída!")
     _play_ping(ping_b64)
-    st.download_button(
-        "📦 Baixar imagens convertidas",
-        data=zbytes,
-        file_name=f"convertidas_{target_label}.zip",
-        mime="application/zip"
-    )
+    st.download_button("📦 Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
 
 
 if __name__ == "__main__":
