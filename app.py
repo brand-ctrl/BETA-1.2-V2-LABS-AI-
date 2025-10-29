@@ -1,8 +1,3 @@
-src = Path("/mnt/data/app.py")
-dst_dir = Path("/mnt/data/app_header_reduced")
-dst_dir.mkdir(exist_ok=True)
-
-# Ler o conteúdo
 content = src.read_text(encoding="utf-8")
 
 # Novo bloco com logo menor (300px), alinhada à esquerda, e sem header branca
