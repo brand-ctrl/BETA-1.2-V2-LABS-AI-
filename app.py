@@ -35,6 +35,20 @@ h1,h2,h3,h4 { color:#0f172a; font-weight:800; letter-spacing:.5px; margin-bottom
   <img src="assets/logo_v2labs.svg" alt="Logo V2 Labs">
 </div>
 """, unsafe_allow_html=True)
+.v2-card {
+  display:flex; gap:16px; align-items:center;
+  background: rgba(173, 216, 255, 0.35);  /* azul suave e translúcido */
+  border-radius:18px; padding:16px;
+  border:1px solid rgba(255,255,255,0.45);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 20px rgba(173, 216, 255, 0.18); /* sombra mais leve */
+  position: relative; overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.v2-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(173, 216, 255, 0.28);
+}
 
 if route == "home":
     st.markdown('<h3 class="section-title fade-in">FERRAMENTAS</h3>', unsafe_allow_html=True)
