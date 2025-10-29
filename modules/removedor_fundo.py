@@ -42,28 +42,48 @@ def render(ping_b64: str):
         box-shadow: none !important;
         border: none !important;
     }
-    div[data-testid="stExpander"] {
-        background-color: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 10px !important;
+
+    /* NAV BAR */
+    .nav-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 40px;
+        margin-top: -12px;
     }
-    div[data-testid="stExpander"] button {
-        color: #111 !important;
-        font-weight: 600 !important;
+    .nav-bar a {
+        text-decoration: none;
+        color: #111;
+        font-weight: 500;
+        font-size: 15px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        transition: 0.2s ease-in-out;
     }
-    div[data-testid="stFileUploader"] {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 15px;
+    .nav-bar a:hover {
+        background: rgba(0,0,0,0.05);
+    }
+
+    /* HERO SECTION */
+    .hero-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-left: 10%;
+        margin-top: 20px;
+    }
+    .hero-title {
+        font-size: 34px;
+        font-weight: 800;
+        margin-bottom: 32px;
+        color: #111;
     }
     .hero {
         position: relative;
-        width: 100%;
+        width: 500px;
         height: 500px;
         border-radius: 20px;
         overflow: hidden;
-        margin-bottom: 40px;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -87,27 +107,30 @@ def render(ping_b64: str):
         background: none;
     }
     .hero-overlay img {
-        width: 90px;
-        margin-bottom: 14px;
+        width: 80px;
+        margin-bottom: 10px;
         opacity: 0.95;
-    }
-    .hero-overlay h1 {
-        font-size: 34px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        margin: 0;
-        color: #111;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # ====== HEADER HERO ======
+    # ====== HEADER NAV ======
+    st.markdown("""
+    <div class="nav-bar">
+        <a href="#">Home</a>
+        <a href="#">Sobre</a>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ====== HERO SECTION ======
     st.markdown(f"""
-    <div class="hero">
-        <img src="data:image/png;base64,{b64_banner}" class="bg" alt="background">
-        <div class="hero-overlay">
-            <img src="assets/icon_removedor.svg" alt="icon">
-            <h1>REMOVEDOR DE FUNDO</h1>
+    <div class="hero-container">
+        <div class="hero-title">REMOVEDOR DE FUNDO</div>
+        <div class="hero">
+            <img src="data:image/png;base64,{b64_banner}" class="bg" alt="background">
+            <div class="hero-overlay">
+                <img src="assets/icon_removedor.svg" alt="icon">
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
