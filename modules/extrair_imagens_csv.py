@@ -9,15 +9,40 @@ import concurrent.futures
 # ============== Helpers ==============
 def _header():
     st.markdown("""
-    <div style="display:flex; align-items:center; gap:18px; margin: 10px 0 12px 0;">
-        <img src="assets/icon_extrator.svg" width="250" style="flex-shrink:0;">
-        <span style="font-size: 34px; font-weight: 800; letter-spacing: .5px; display:flex; align-items:center;">
-            EXTRAIR IMAGENS CSV
-        </span>
+    <style>
+    body,[class*="css"] {
+        background-color: #f9fafb !important;
+        color: #111 !important;
+        font-family: 'Inter', sans-serif;
+    }
+    .stApp header, .stApp [data-testid="stHeader"], .block-container {
+        background: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    .hero-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-left: 10%;
+        margin-top: 20px;
+    }
+    .hero-title {
+        font-size: 34px;
+        font-weight: 800;
+        margin-bottom: 32px;
+        color: #111;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Cabeçalho alinhado à esquerda
+    st.markdown("""
+    <div class="hero-container">
+        <div class="hero-title">EXTRAIR IMAGENS CSV</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="panel fade-in">Configuração de Acesso</div>', unsafe_allow_html=True)
 
 def _shopify_request(url, token, params=None):
     headers = {
@@ -32,6 +57,7 @@ def _shopify_request(url, token, params=None):
             st.error(f"Erro {r.status_code}: {r.text[:300]}")
         st.stop()
     return r
+
 
 def _get_collection_id(shop_name, api_version, collection_input, token):
     # Accept ID, handle or full URL
@@ -54,6 +80,7 @@ def _get_collection_id(shop_name, api_version, collection_input, token):
         st.error("Coleção não encontrada pelo handle informado."); st.stop()
     return str(items[0]["id"])
 
+
 def _get_products_in_collection(shop_name, api_version, collection_id, token, turbo=False):
     produtos = []
     page_info = None
@@ -74,6 +101,7 @@ def _get_products_in_collection(shop_name, api_version, collection_id, token, tu
             break
     return produtos
 
+
 def _baixar_imagem(url, caminho):
     try:
         r = requests.get(url, timeout=20)
@@ -84,26 +112,34 @@ def _baixar_imagem(url, caminho):
     except Exception:
         pass
 
-# ============== Public API ==============
+
+# ============== Interface ==============
 def render(ping_b64: str):
     _header()
 
+    # Campos de configuração simples e alinhados à esquerda
+    st.markdown("### Configuração de Acesso")
+
     colA, colB = st.columns(2)
     with colA:
-        shop_name = st.text_input("Nome da Loja (ex: a608d7-cf)", help="Endereço myshopify.com sem o sufixo.")
+        shop_name = st.text_input("Nome da Loja", placeholder="ex: a608d7-cf", help="Endereço myshopify.com sem o sufixo.")
     with colB:
-        api_version = st.text_input("API Version", value="2023-10", help="Versão Admin API (ex: 2023-10).")
+        api_version = st.text_input("API Version", value="2023-10", help="Versão da Admin API (ex: 2023-10).")
 
-    access_token = st.text_input("Access Token (shpat_...)", type="password")
-    collection_input = st.text_input("Coleção (ID, handle ou URL)", help="ex: dunk ou https://sualoja.myshopify.com/collections/dunk")
+    access_token = st.text_input("Access Token (shpat_...)", type="password", placeholder="Cole aqui seu token de acesso")
+    collection_input = st.text_input("Coleção (ID, handle ou URL)", placeholder="ex: dunk ou https://sualoja.myshopify.com/collections/dunk")
 
-    st.markdown('<div class="panel fade-in">Opções</div>', unsafe_allow_html=True)
+    st.markdown("### Opções")
     modo = st.radio("Selecione a ação:", ("🔗 Gerar apenas CSV com links", "📦 Baixar imagens e gerar ZIP por produto"), index=0, horizontal=True)
     turbo = st.toggle("Turbo (download paralelo)", value=True)
 
+    st.write("---")
+
+    # ======= Ação principal =======
     if st.button("▶️ Iniciar Exportação", use_container_width=True):
         if not (shop_name and api_version and access_token and collection_input):
-            st.warning("Preencha todos os campos."); st.stop()
+            st.warning("Preencha todos os campos obrigatórios.")
+            st.stop()
 
         if collection_input.isdigit():
             collection_id = collection_input
@@ -113,10 +149,10 @@ def render(ping_b64: str):
         produtos = _get_products_in_collection(shop_name, api_version, collection_id, access_token)
 
         if not produtos:
-            st.warning("Nenhum produto encontrado nesta coleção."); st.stop()
+            st.warning("Nenhum produto encontrado nesta coleção.")
+            st.stop()
 
-        dados = []
-        tarefas = []
+        dados, tarefas = [], []
 
         for p in produtos:
             title = p.get("title", "")
