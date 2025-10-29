@@ -48,26 +48,51 @@ def render(ping_b64: str):
         border-radius: 10px;
         padding: 15px;
     }
+    .hero {
+        position: relative;
+        width: 100%;
+        height: 400px;
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 40px;
+    }
+    .hero img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: brightness(60%);
+    }
+    .hero-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #fff;
+    }
+    .hero-overlay img {
+        width: 90px;
+        margin-bottom: 12px;
+        opacity: 0.95;
+    }
+    .hero-overlay h1 {
+        font-size: 38px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        margin: 0;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-    # ====== HEADER ======
+    # ====== HEADER COM IMAGEM DO DRIVE ======
     st.markdown("""
-    <div style="
-        display:flex; align-items:center; justify-content:space-between;
-        padding: 10px 0 20px 0; margin-bottom: 20px;
-        border-bottom: 1px solid rgba(255,255,255,0.1);">
-        
-        <div style="display:flex; align-items:center; gap:14px;">
-            <img src="assets/icon_removedor.svg" width="75" style="flex-shrink:0; opacity:0.95;">
-            <span style="font-size:28px; font-weight:800; letter-spacing:0.4px; color:#f5f5f5;">
-                REMOVEDOR DE FUNDO
-            </span>
-        </div>
-
-        <div>
-            <img src="assets/index-main-one.Ctir1gdN.png" width="500" 
-                 style="border-radius:18px; opacity:0.9;">
+    <div class="hero">
+        <img src="https://drive.google.com/uc?export=view&id=1tkzmi4B0IoslX07VuM-v_3TIuHdj3hVb" alt="background">
+        <div class="hero-overlay">
+            <img src="assets/icon_removedor.svg" alt="icon">
+            <h1>REMOVEDOR DE FUNDO</h1>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -87,7 +112,7 @@ def render(ping_b64: str):
         )
     st.caption("💡 Dica: 'u2net_human_seg' é ideal para retratos humanos.")
 
-    # ====== UPLOAD DE ARQUIVOS ======
+    # ====== UPLOAD ======
     files = st.file_uploader(
         "📂 Envie imagens ou um arquivo ZIP",
         type=["jpg", "jpeg", "png", "webp", "zip"],
@@ -128,7 +153,7 @@ def render(ping_b64: str):
     def worker(p: Path):
         rel = p.relative_to(INP)
         raw = open(p, "rb").read()
-        out_bytes = _remove_bg_bytes(raw, session=session)
+        out_bytes = remove(raw, session=session)
         outp = (Path(OUT) / rel).with_suffix(".png")
         os.makedirs(outp.parent, exist_ok=True)
         open(outp, "wb").write(out_bytes)
