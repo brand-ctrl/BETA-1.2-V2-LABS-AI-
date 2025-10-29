@@ -1,8 +1,3 @@
-import streamlit as st
-from PIL import Image
-import io, os, shutil, zipfile, base64
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ====== DEPENDÊNCIA REMBG ======
 try:
