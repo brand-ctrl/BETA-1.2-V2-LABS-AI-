@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-import io, os, shutil, zipfile
+import io, os, shutil, zipfile, base64
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -20,7 +20,16 @@ def _remove_bg_bytes(img_bytes: bytes, session=None) -> bytes:
 
 
 def render(ping_b64: str):
-    # ====== ESTILO GLOBAL ======
+    # ====== CARREGAR IMAGEM COMO BASE64 ======
+    banner_path = "assets/removedor_banner.png"
+    try:
+        with open(banner_path, "rb") as f:
+            b64_banner = base64.b64encode(f.read()).decode("utf-8")
+    except FileNotFoundError:
+        st.error("❌ Imagem de banner não encontrada em 'assets/removedor_banner.png'")
+        st.stop()
+
+    # ====== ESTILO ======
     st.markdown("""
     <style>
     body,[class*="css"] {
@@ -55,14 +64,12 @@ def render(ping_b64: str):
         border-radius: 18px;
         overflow: hidden;
         margin-bottom: 40px;
-        background: linear-gradient(180deg, rgba(173,216,230,0.2) 0%, rgba(240,248,255,0.6) 100%);
     }
     .hero img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: 0.35;
-        filter: none;
+        opacity: 0.45;
     }
     .hero-overlay {
         position: absolute;
@@ -74,6 +81,7 @@ def render(ping_b64: str):
         text-align: center;
         color: #111;
         z-index: 2;
+        background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.6));
     }
     .hero-overlay img {
         width: 90px;
@@ -92,10 +100,10 @@ def render(ping_b64: str):
     </style>
     """, unsafe_allow_html=True)
 
-    # ====== HEADER COM IMAGEM LOCAL ======
-    st.markdown("""
+    # ====== HEADER HERO ======
+    st.markdown(f"""
     <div class="hero">
-        <img src="assets/removedor_banner.png" alt="background">
+        <img src="data:image/png;base64,{b64_banner}" alt="background">
         <div class="hero-overlay">
             <img src="assets/icon_removedor.svg" alt="icon">
             <h1>REMOVEDOR DE FUNDO</h1>
