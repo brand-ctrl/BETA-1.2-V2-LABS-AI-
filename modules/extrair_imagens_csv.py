@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 import re
 import os
+import shutil
 import zipfile
 import concurrent.futures
 
@@ -36,7 +37,6 @@ def _header():
     </style>
     """, unsafe_allow_html=True)
 
-    # Cabeçalho alinhado à esquerda
     st.markdown("""
     <div class="hero-container">
         <div class="hero-title">EXTRAIR IMAGENS CSV</div>
@@ -60,10 +60,11 @@ def _shopify_request(url, token, params=None):
 
 
 def _get_collection_id(shop_name, api_version, collection_input, token):
-    # Accept ID, handle or full URL
+    # Se for ID direto
     if collection_input.isdigit():
         return collection_input
 
+    # Se for URL
     if collection_input.startswith("http"):
         m = re.search(r"/collections/([^/?#]+)", collection_input)
         if m:
@@ -73,6 +74,7 @@ def _get_collection_id(shop_name, api_version, collection_input, token):
     else:
         handle = collection_input
 
+    # Buscar coleção pelo handle
     url = f"https://{shop_name}.myshopify.com/admin/api/{api_version}/custom_collections.json"
     r = _shopify_request(url, token, params={"handle": handle})
     items = r.json().get("custom_collections", [])
@@ -81,7 +83,7 @@ def _get_collection_id(shop_name, api_version, collection_input, token):
     return str(items[0]["id"])
 
 
-def _get_products_in_collection(shop_name, api_version, collection_id, token, turbo=False):
+def _get_products_in_collection(shop_name, api_version, collection_id, token):
     produtos = []
     page_info = None
     while True:
@@ -117,35 +119,35 @@ def _baixar_imagem(url, caminho):
 def render(ping_b64: str):
     _header()
 
-    # Campos de configuração simples e alinhados à esquerda
     st.markdown("### Configuração de Acesso")
 
     colA, colB = st.columns(2)
     with colA:
-        shop_name = st.text_input("Nome da Loja", placeholder="ex: a608d7-cf", help="Endereço myshopify.com sem o sufixo.")
+        shop_name = st.text_input("Nome da Loja", placeholder="ex: a608d7-cf")
     with colB:
-        api_version = st.text_input("API Version", value="2023-10", help="Versão da Admin API (ex: 2023-10).")
+        api_version = st.text_input("API Version", value="2023-10")
 
-    access_token = st.text_input("Access Token (shpat_...)", type="password", placeholder="Cole aqui seu token de acesso")
+    access_token = st.text_input("Access Token (shpat_...)", type="password")
     collection_input = st.text_input("Coleção (ID, handle ou URL)", placeholder="ex: dunk ou https://sualoja.myshopify.com/collections/dunk")
 
     st.markdown("### Opções")
     modo = st.radio("Selecione a ação:", ("🔗 Gerar apenas CSV com links", "📦 Baixar imagens e gerar ZIP por produto"), index=0, horizontal=True)
     turbo = st.toggle("Turbo (download paralelo)", value=True)
-
     st.write("---")
 
-    # ======= Ação principal =======
     if st.button("▶️ Iniciar Exportação", use_container_width=True):
         if not (shop_name and api_version and access_token and collection_input):
             st.warning("Preencha todos os campos obrigatórios.")
             st.stop()
 
-        if collection_input.isdigit():
-            collection_id = collection_input
-        else:
-            collection_id = _get_collection_id(shop_name, api_version, collection_input, access_token)
+        # Limpa pastas antigas
+        if os.path.exists("imagens_baixadas"):
+            shutil.rmtree("imagens_baixadas")
+        for file in os.listdir():
+            if file.endswith(".zip") or file.endswith(".csv"):
+                os.remove(file)
 
+        collection_id = _get_collection_id(shop_name, api_version, collection_input, access_token)
         produtos = _get_products_in_collection(shop_name, api_version, collection_id, access_token)
 
         if not produtos:
@@ -153,7 +155,6 @@ def render(ping_b64: str):
             st.stop()
 
         dados, tarefas = [], []
-
         for p in produtos:
             title = p.get("title", "")
             imagens = [img["src"] for img in p.get("images", [])]
@@ -190,3 +191,7 @@ def render(ping_b64: str):
             st.download_button("📥 Baixar CSV", f, file_name=csv_name, use_container_width=True)
 
         st.success("🎉 Exportação concluída!")
+
+
+if __name__ == "__main__":
+    render("")
