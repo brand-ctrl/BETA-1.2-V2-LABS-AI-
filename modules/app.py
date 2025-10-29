@@ -1,11 +1,6 @@
 
 import streamlit as st
 
-</style>
-<div class="v2-header">
-  <img src="assets/logo_v2labs.svg" alt="V2 Labs">
-</div>
-""", unsafe_allow_html=True)
 
 route = st.session_state.get("route","home")
 
