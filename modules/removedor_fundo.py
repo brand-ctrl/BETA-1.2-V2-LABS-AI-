@@ -24,8 +24,8 @@ def render(ping_b64: str):
     st.markdown("""
     <style>
     body,[class*="css"] {
-        background-color: #0e0e0e !important;
-        color: #f5f5f5 !important;
+        background-color: #f5f7fa !important;
+        color: #111 !important;
         font-family: 'Inter', sans-serif;
     }
     .stApp header, .stApp [data-testid="stHeader"], .block-container {
@@ -34,37 +34,35 @@ def render(ping_b64: str):
         border: none !important;
     }
     div[data-testid="stExpander"] {
-        background-color: #1a1a1a !important;
-        border: 1px solid #333 !important;
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
         border-radius: 10px !important;
     }
     div[data-testid="stExpander"] button {
-        color: #f5f5f5 !important;
+        color: #111 !important;
         font-weight: 600 !important;
     }
     div[data-testid="stFileUploader"] {
-        background-color: #1a1a1a;
-        border: 1px solid #333;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
         padding: 15px;
     }
     .hero {
         position: relative;
         width: 100%;
-        height: 400px;
-        border-radius: 16px;
+        height: 420px;
+        border-radius: 18px;
         overflow: hidden;
         margin-bottom: 40px;
+        background: linear-gradient(180deg, rgba(173,216,230,0.2) 0%, rgba(240,248,255,0.6) 100%);
     }
     .hero img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        filter: brightness(55%);
-        transition: transform 8s ease;
-    }
-    .hero:hover img {
-        transform: scale(1.05);
+        opacity: 0.35;
+        filter: none;
     }
     .hero-overlay {
         position: absolute;
@@ -74,20 +72,22 @@ def render(ping_b64: str):
         align-items: center;
         justify-content: center;
         text-align: center;
-        color: #fff;
+        color: #111;
+        z-index: 2;
     }
     .hero-overlay img {
         width: 90px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         opacity: 0.95;
+        z-index: 3;
     }
     .hero-overlay h1 {
         font-size: 38px;
         font-weight: 800;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
         margin: 0;
-        color: #fff;
-        text-shadow: 0px 0px 12px rgba(0,0,0,0.6);
+        color: #111;
+        z-index: 3;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -176,7 +176,7 @@ def render(ping_b64: str):
             prog.progress(i / tot)
             info.info(f"Processado {i}/{tot}")
 
-    st.markdown("<hr style='border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 0; border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
     st.subheader("🖼️ Pré-visualização (Antes / Depois)")
     alpha = st.slider("Comparação de mistura", 0, 100, 50, 1)
     blend = alpha / 100.0
