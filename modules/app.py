@@ -1,13 +1,7 @@
 
 import streamlit as st
 
-st.set_page_config(page_title="V2 LABS AI BETA 1.1", page_icon="assets/logo_v2labs.svg", layout="wide")
 
-st.markdown("""
-<style>
-:root{ --bg1:#e9f5ff; --bg2:#e9f5ff; --ink:#0f172a; --line:rgba(15,23,42,.08); }
-html, body, .stApp, [class*="css"]{
-  color:var(--ink); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 .v2-header{ display:flex; align-items:center; justify-content:flex-start; padding:18px 6% 4px; }
 .v2-header img{ width:300px; height:auto; display:block; }
