@@ -43,27 +43,6 @@ def render(ping_b64: str):
         border: none !important;
     }
 
-    /* NAV BAR */
-    .nav-bar {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 40px;
-        margin-top: -12px;
-    }
-    .nav-bar a {
-        text-decoration: none;
-        color: #111;
-        font-weight: 500;
-        font-size: 15px;
-        padding: 6px 10px;
-        border-radius: 6px;
-        transition: 0.2s ease-in-out;
-    }
-    .nav-bar a:hover {
-        background: rgba(0,0,0,0.05);
-    }
-
     /* HERO SECTION */
     .hero-container {
         display: flex;
@@ -95,31 +74,35 @@ def render(ping_b64: str):
         border-radius: 18px;
         box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
-    .hero-overlay {
-        position: absolute;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        color: #111;
-        z-index: 2;
-        background: none;
+
+    /* EXPANDER E UPLOAD */
+    div[data-testid="stExpander"] {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 10px !important;
     }
-    .hero-overlay img {
-        width: 80px;
-        margin-bottom: 10px;
-        opacity: 0.95;
+    div[data-testid="stExpander"] button {
+        color: #111 !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stFileUploader"] {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 15px;
+    }
+
+    /* ALERT HARMONIZADO */
+    .custom-alert {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 18px;
+        color: #111;
+        font-size: 15px;
+        margin-top: 10px;
     }
     </style>
-    """, unsafe_allow_html=True)
-
-    # ====== HEADER NAV ======
-    st.markdown("""
-    <div class="nav-bar">
-        <a href="#">Home</a>
-        <a href="#">Sobre</a>
-    </div>
     """, unsafe_allow_html=True)
 
     # ====== HERO SECTION ======
@@ -127,7 +110,7 @@ def render(ping_b64: str):
     <div class="hero-container">
         <div class="hero-title">REMOVEDOR DE FUNDO</div>
         <div class="hero">
-            </div>
+            <img src="data:image/png;base64,{b64_banner}" class="bg" alt="background">
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -154,7 +137,7 @@ def render(ping_b64: str):
         accept_multiple_files=True
     )
     if not files:
-        st.info("👆 Envie suas imagens acima para começar.")
+        st.markdown('<div class="custom-alert">👆 Envie suas imagens acima para começar.</div>', unsafe_allow_html=True)
         st.stop()
 
     INP, OUT = "rm_in", "rm_out"
