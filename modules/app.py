@@ -1,10 +1,4 @@
 
-import streamlit as st
-
-
-    card("assets/icon_conversor.svg","CONVERSOR DE IMAGENS",
-         "Redimensione para 1080×1080 ou 1080×1920 preenchendo com cor.",
-         "Abrir Conversor","conversor")
 
     card("assets/icon_extrator.svg","EXTRATOR DE IMAGENS CSV",
          "Baixe imagens diretamente de URLs listadas em um arquivo CSV.",
