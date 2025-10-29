@@ -58,13 +58,3 @@ pattern = re.compile(
 )
 content_new = re.sub(pattern, new_block, content)
 
-# Gravar novo arquivo
-dst_file = dst_dir / "app.py"
-dst_file.write_text(content_new, encoding="utf-8")
-
-# Compactar em zip
-zip_path = "/mnt/data/app_header_reduced.zip"
-with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-    z.write(dst_file, "app.py")
-
-zip_path
