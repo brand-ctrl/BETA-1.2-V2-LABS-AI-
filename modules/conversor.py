@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-import io, os, shutil, zipfile
+import io, os, shutil, zipfile, base64
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -20,14 +20,91 @@ def _play_ping(ping_b64: str):
     st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
 
 def render(ping_b64: str):
+    # ====== Carregar banner ======
+    banner_path = "assets/banner_resize.png"
+    try:
+        with open(banner_path, "rb") as f:
+            b64_banner = base64.b64encode(f.read()).decode("utf-8")
+    except FileNotFoundError:
+        st.error("❌ Imagem de banner não encontrada em 'assets/banner_resize.png'")
+        st.stop()
+
+    # ====== CSS ======
     st.markdown("""
-    <div style="display:flex; align-items:center; gap:18px; margin: 10px 0 12px 0;">
-        
-            CONVERSOR DE IMAGENS
-        </span>
+    <style>
+    body,[class*="css"] {
+        background-color: #f9fafb !important;
+        color: #111 !important;
+        font-family: 'Inter', sans-serif;
+    }
+    .stApp header, .stApp [data-testid="stHeader"], .block-container {
+        background: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    /* HERO SECTION */
+    .hero-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-left: 10%;
+        margin-top: 20px;
+    }
+    .hero-title {
+        font-size: 34px;
+        font-weight: 800;
+        margin-bottom: 32px;
+        color: #111;
+    }
+    .hero {
+        position: relative;
+        width: 500px;
+        height: 500px;
+        border-radius: 20px;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .hero img.bg {
+        width: 500px;
+        height: 500px;
+        object-fit: cover;
+        border-radius: 18px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    /* CONFIG E UPLOAD */
+    div[data-testid="stExpander"] {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+    }
+    div[data-testid="stExpander"] button {
+        color: #111 !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stFileUploader"] {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ====== Hero Section ======
+    st.markdown(f"""
+    <div class="hero-container">
+        <div class="hero-title">CONVERSOR DE IMAGEM</div>
+        <div class="hero">
+            <img src="data:image/png;base64,{b64_banner}" class="bg" alt="banner">
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # ====== Configurações ======
     col1, col2 = st.columns(2)
     with col1:
         target_label = st.radio("Resolução", ("1080x1080", "1080x1920"), horizontal=True)
@@ -39,8 +116,11 @@ def render(ping_b64: str):
     st.write("---")
     out_format = st.selectbox("Formato de saída", ("png","jpg","webp"), index=0)
 
+    # ====== Upload ======
     files = st.file_uploader("Envie imagens ou ZIP", type=["jpg","jpeg","png","webp","zip"], accept_multiple_files=True)
-    if not files: st.stop()
+    if not files:
+        st.info("👆 Envie suas imagens acima para começar.")
+        st.stop()
 
     INP, OUT = "conv_in", "conv_out"
     shutil.rmtree(INP, ignore_errors=True); shutil.rmtree(OUT, ignore_errors=True)
@@ -55,10 +135,11 @@ def render(ping_b64: str):
         else:
             open(os.path.join(INP, f.name), "wb").write(f.read())
 
-    paths = [p for p in Path(INP).rglob("*") if p.suffix.lower() in (".jpg",".jpeg",".png",".webp") ]
+    paths = [p for p in Path(INP).rglob("*") if p.suffix.lower() in (".jpg",".jpeg",".png",".webp")]
     if not paths:
         st.warning("Nenhuma imagem encontrada."); st.stop()
 
+    # ====== Processamento ======
     prog = st.progress(0.0); info = st.empty()
     results = []
 
@@ -102,12 +183,13 @@ def render(ping_b64: str):
         with cols[idx % 3]:
             st.image(data, caption=name, use_column_width=True)
 
+    # ====== ZIP ======
     zbytes = io.BytesIO()
     with zipfile.ZipFile(zbytes, "w", zipfile.ZIP_DEFLATED) as z:
         for root,_,files in os.walk(OUT):
             for fn in files:
                 fp=os.path.join(root,fn); arc=os.path.relpath(fp,OUT); z.write(fp,arc)
     zbytes.seek(0)
-    st.success("Conversão concluída!")
+    st.success("✅ Conversão concluída!")
     _play_ping(ping_b64)
-    st.download_button("Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{{target_label}}.zip", mime="application/zip")
+    st.download_button("📦 Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
