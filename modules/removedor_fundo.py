@@ -127,9 +127,6 @@ def render(ping_b64: str):
     <div class="hero-container">
         <div class="hero-title">REMOVEDOR DE FUNDO</div>
         <div class="hero">
-            <img src="data:image/png;base64,{b64_banner}" class="bg" alt="background">
-            <div class="hero-overlay">
-                <img src="assets/icon_removedor.svg" alt="icon">
             </div>
         </div>
     </div>
