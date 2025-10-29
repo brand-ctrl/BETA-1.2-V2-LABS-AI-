@@ -20,15 +20,55 @@ def _remove_bg_bytes(img_bytes: bytes, session=None) -> bytes:
 
 
 def render(ping_b64: str):
+    # ====== ESTILO GLOBAL ======
+    st.markdown("""
+    <style>
+    body,[class*="css"] {
+        background-color: #0e0e0e !important;
+        color: #f5f5f5 !important;
+        font-family: 'Inter', sans-serif;
+    }
+    .stApp header, .stApp [data-testid="stHeader"], .block-container {
+        background: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    div[data-testid="stExpander"] {
+        background-color: #1a1a1a !important;
+        border: 1px solid #333 !important;
+        border-radius: 10px !important;
+    }
+    div[data-testid="stExpander"] button {
+        color: #f5f5f5 !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stFileUploader"] {
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     # ====== HEADER ======
     st.markdown("""
     <div style="
-        display:flex; align-items:center; gap:14px; margin: 8px 0 20px 0;
-        border-bottom: 1px solid #e5e7eb; padding-bottom:12px;">
-        <img src="assets/icon_removedor.svg" width="100" style="flex-shrink:0; opacity:0.95;">
-        <span style="font-size:30px; font-weight:800; letter-spacing:0.4px; color:#1e3a8a;">
-            REMOVEDOR DE FUNDO
-        </span>
+        display:flex; align-items:center; justify-content:space-between;
+        padding: 10px 0 20px 0; margin-bottom: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);">
+        
+        <div style="display:flex; align-items:center; gap:14px;">
+            <img src="assets/icon_removedor.svg" width="75" style="flex-shrink:0; opacity:0.95;">
+            <span style="font-size:28px; font-weight:800; letter-spacing:0.4px; color:#f5f5f5;">
+                REMOVEDOR DE FUNDO
+            </span>
+        </div>
+
+        <div>
+            <img src="assets/index-main-one.Ctir1gdN.png" width="500" 
+                 style="border-radius:18px; opacity:0.9;">
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -45,11 +85,11 @@ def render(ping_b64: str):
             index=0,
             help="Escolha o modelo de recorte — o padrão é otimizado para pessoas."
         )
-    st.caption("Dica: 'u2net_human_seg' costuma dar melhor resultado para pessoas.")
+    st.caption("💡 Dica: 'u2net_human_seg' é ideal para retratos humanos.")
 
     # ====== UPLOAD DE ARQUIVOS ======
     files = st.file_uploader(
-        "Envie imagens ou um arquivo ZIP",
+        "📂 Envie imagens ou um arquivo ZIP",
         type=["jpg", "jpeg", "png", "webp", "zip"],
         accept_multiple_files=True
     )
@@ -105,7 +145,7 @@ def render(ping_b64: str):
             prog.progress(i / tot)
             info.info(f"Processado {i}/{tot}")
 
-    st.write("---")
+    st.markdown("<hr style='border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
     st.subheader("🖼️ Pré-visualização (Antes / Depois)")
     alpha = st.slider("Comparação de mistura", 0, 100, 50, 1)
     blend = alpha / 100.0
