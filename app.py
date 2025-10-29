@@ -17,6 +17,24 @@ with c2:
     if st.button("Sobre", type="secondary"): go("about")
 
 route = st.session_state.route
+# === BG gradiente + header com logo (300px esquerda) + alinhamento clean ===
+st.markdown("""
+<style>
+:root { --bg1:#e9f5ff; --bg2:#e9f5ff; }
+html, body, .stApp, [class*="css"] {
+  background: linear-gradient(180deg, var(--bg1), var(--bg2)) !important;
+  color:#0f172a; font-family:'Inter',sans-serif;
+}
+.v2-header { display:flex; align-items:center; justify-content:flex-start; padding:20px 6%; }
+.v2-header img { width:300px; height:auto; }
+.block-container { padding-top:0 !important; margin-top:-10px; max-width:1200px; }
+h1,h2,h3,h4 { color:#0f172a; font-weight:800; letter-spacing:.5px; margin-bottom:14px; }
+</style>
+
+<div class="v2-header fade-in">
+  <img src="assets/logo_v2labs.svg" alt="Logo V2 Labs">
+</div>
+""", unsafe_allow_html=True)
 
 if route == "home":
     st.markdown('<h3 class="section-title fade-in">FERRAMENTAS</h3>', unsafe_allow_html=True)
