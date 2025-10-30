@@ -1,3 +1,19 @@
+# ==========================================
+# 🔧 Instala pacotes automaticamente
+# ==========================================
+import subprocess, sys
+for pkg in [
+    "google-auth-oauthlib",
+    "google-api-python-client",
+    "pandas",
+    "Pillow",
+    "streamlit",
+]:
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", pkg])
+
+# ==========================================
+# 📦 Imports
+# ==========================================
 import streamlit as st
 from PIL import Image
 import io, os, shutil, zipfile, base64
@@ -5,9 +21,9 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 
-# ========================================
-# 🔧 Funções auxiliares
-# ========================================
+# ==========================================
+# 🧠 Funções auxiliares
+# ==========================================
 def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     w, h = img.size
     scale = min(target_size[0] / w, target_size[1] / h)
@@ -21,14 +37,14 @@ def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     canvas.paste(img, off, img)
     return canvas
 
+
 def _play_ping(ping_b64: str):
-    st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>',
-                unsafe_allow_html=True)
+    st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
 
 
-# ========================================
-# 🧭 Interface principal
-# ========================================
+# ==========================================
+# 🖼️ Interface principal
+# ==========================================
 def render(ping_b64: str):
     # ----- Banner -----
     banner_path = "assets/banner_resize.png"
@@ -51,7 +67,6 @@ def render(ping_b64: str):
     </style>
     """, unsafe_allow_html=True)
 
-    # ----- Hero Section -----
     st.markdown(f"""
     <div class="hero-container">
         <div class="hero-title">CONVERSOR DE IMAGEM</div>
@@ -155,57 +170,75 @@ def render(ping_b64: str):
     _play_ping(ping_b64)
     st.download_button("📦 Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
 
-    # ===========================================
-    # ☁️ UPLOAD PARA GOOGLE DRIVE (OAuth Login)
-    # ===========================================
+    # ==========================================================
+    # ☁️ UPLOAD PARA GOOGLE DRIVE (com seleção de pasta)
+    # ==========================================================
     with st.expander("☁️ Enviar imagens convertidas para o Google Drive"):
-        st.markdown("Faça login com sua conta Google e envie os arquivos convertidos diretamente para o seu Drive.")
+        st.markdown("Faça login com sua conta Google e escolha uma pasta para salvar os arquivos convertidos.")
 
-        if st.button("🚀 Fazer upload para o Google Drive"):
+        creds_path = "credentials_oauth.json"
+        if not os.path.exists(creds_path):
+            st.warning("⚠️ Envie seu arquivo `credentials_oauth.json` (OAuth 2.0 Desktop App) para o diretório do app.")
+            st.stop()
+
+        if st.button("🔐 Conectar ao Google Drive"):
             try:
                 from google_auth_oauthlib.flow import InstalledAppFlow
                 from googleapiclient.discovery import build
                 from googleapiclient.http import MediaFileUpload
 
                 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
-                flow = InstalledAppFlow.from_client_secrets_file("credentials_oauth.json", SCOPES)
+                flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
                 creds = flow.run_local_server(port=0)
                 service = build("drive", "v3", credentials=creds)
 
-                folder_metadata = {"name": "imagens_publicas_streamlit", "mimeType": "application/vnd.google-apps.folder"}
-                folder = service.files().create(body=folder_metadata, fields="id").execute()
-                folder_id = folder.get("id")
+                # listar pastas existentes
+                st.info("🔎 Buscando pastas do Drive...")
+                results = service.files().list(
+                    q="mimeType='application/vnd.google-apps.folder' and trashed=false",
+                    spaces="drive",
+                    fields="files(id, name)"
+                ).execute()
+                pastas = results.get("files", [])
+                pasta_nomes = [p["name"] for p in pastas] + ["(Criar nova pasta)"]
+                pasta_escolhida = st.selectbox("Selecione uma pasta de destino:", pasta_nomes)
 
-                st.info("📁 Pasta criada no seu Drive!")
+                if st.button("🚀 Enviar arquivos convertidos"):
+                    if pasta_escolhida == "(Criar nova pasta)":
+                        nova = service.files().create(
+                            body={"name": "imagens_publicas_streamlit", "mimeType": "application/vnd.google-apps.folder"},
+                            fields="id"
+                        ).execute()
+                        folder_id = nova["id"]
+                    else:
+                        folder_id = [p["id"] for p in pastas if p["name"] == pasta_escolhida][0]
 
-                uploads = []
-                for root, _, files in os.walk("conv_out"):
-                    for fn in files:
-                        fp = os.path.join(root, fn)
-                        meta = {"name": fn, "parents": [folder_id]}
-                        media = MediaFileUpload(fp, resumable=True)
-                        file = service.files().create(body=meta, media_body=media, fields="id").execute()
-                        uploads.append({
-                            "nome_do_arquivo": fn,
-                            "url_publica": f"https://drive.google.com/uc?export=view&id={file['id']}"
-                        })
+                    uploads = []
+                    for root, _, files in os.walk("conv_out"):
+                        for fn in files:
+                            fp = os.path.join(root, fn)
+                            meta = {"name": fn, "parents": [folder_id]}
+                            media = MediaFileUpload(fp, resumable=True)
+                            f = service.files().create(body=meta, media_body=media, fields="id").execute()
+                            uploads.append({
+                                "nome_do_arquivo": fn,
+                                "url_publica": f"https://drive.google.com/uc?export=view&id={f['id']}"
+                            })
 
-                # Permissão pública
-                service.permissions().create(fileId=folder_id, body={"type": "anyone", "role": "reader"}).execute()
+                    service.permissions().create(fileId=folder_id, body={"type": "anyone", "role": "reader"}).execute()
+                    df = pd.DataFrame(uploads)
+                    csv_path = "links_drive.csv"
+                    df.to_csv(csv_path, index=False)
 
-                df = pd.DataFrame(uploads)
-                csv_path = "links_drive.csv"
-                df.to_csv(csv_path, index=False)
-
-                st.success("✅ Upload concluído e CSV gerado!")
-                st.download_button("📥 Baixar CSV de Links", data=open(csv_path, "rb").read(),
-                                   file_name="links_drive.csv", mime="text/csv")
+                    st.success("✅ Upload concluído e CSV gerado!")
+                    st.download_button("📥 Baixar CSV de Links", data=open(csv_path, "rb").read(),
+                                       file_name="links_drive.csv", mime="text/csv")
             except Exception as e:
                 st.error(f"❌ Erro: {e}")
 
 
-# ========================================
+# ==========================================
 # ▶️ Execução
-# ========================================
+# ==========================================
 if __name__ == "__main__":
     render("")
