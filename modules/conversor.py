@@ -189,7 +189,21 @@ def render(ping_b64: str):
 
                 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
                 flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
-                creds = flow.run_local_server(port=0)
+                st.info("💡 Ambiente sem navegador detectado: use autenticação via código.")
+st.write("👉 Copie o link abaixo, abra no seu navegador, autorize o acesso e cole o código retornado aqui:")
+
+auth_url, _ = flow.authorization_url(prompt='consent')
+st.write(f"[Abrir link de autorização]({auth_url})")
+
+auth_code = st.text_input("Cole aqui o código gerado após o login:")
+
+if auth_code:
+    flow.fetch_token(code=auth_code)
+    creds = flow.credentials
+    st.success("✅ Autenticação concluída com sucesso!")
+else:
+    st.stop()
+
                 service = build("drive", "v3", credentials=creds)
 
                 # listar pastas existentes
