@@ -5,6 +5,7 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import pandas as pd
+import json
 
 # =============================
 # 🎨 Função auxiliar de redimensionamento
@@ -39,8 +40,7 @@ def render(ping_b64: str):
     <style>
     body,[class*="css"]{background-color:#f9fafb!important;color:#111!important;font-family:'Inter',sans-serif;}
     .stApp header,.stApp [data-testid="stHeader"],.block-container{background:none!important;box-shadow:none!important;border:none!important;}
-    .hero-container{display:flex;flex-direction:column;align-items:flex-start;margin-left:10%;margin-top:20px;}
-    .hero-title{font-size:34px;font-weight:800;margin-bottom:32px;color:#111;}
+    .hero-title{font-size:34px;font-weight:800;margin:20px 0;color:#111;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -143,89 +143,103 @@ def render(ping_b64: str):
                        mime="application/zip")
 
     # ==========================================================
-    # ☁️ UPLOAD PARA GOOGLE DRIVE (com login via código)
+    # ☁️ UPLOAD PARA GOOGLE DRIVE (com token persistente)
     # ==========================================================
     with st.expander("☁️ Enviar imagens convertidas para o Google Drive"):
         st.markdown("Faça login com sua conta Google e escolha uma pasta para salvar os arquivos convertidos.")
 
         creds_path = "credentials_oauth.json"
+        token_path = "token.json"
+
         if not os.path.exists(creds_path):
             st.warning("⚠️ Envie seu arquivo `credentials_oauth.json` (OAuth 2.0 Desktop App) para o diretório do app.")
             st.stop()
 
+        from google.oauth2.credentials import Credentials
         from google_auth_oauthlib.flow import InstalledAppFlow
         from googleapiclient.discovery import build
         from googleapiclient.http import MediaFileUpload
 
         SCOPES = ["https://www.googleapis.com/auth/drive.file"]
-        flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
+        creds = None
 
-        st.info("💡 Ambiente sem navegador detectado: use autenticação via código.")
-        auth_url, _ = flow.authorization_url(prompt='consent')
-        st.markdown(f"👉 [Clique aqui para abrir o login do Google]({auth_url})")
-        auth_code = st.text_input("Cole aqui o código exibido após o login:")
+        # Tenta carregar token existente
+        if os.path.exists(token_path):
+            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
 
-        if not auth_code:
-            st.stop()
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
+                st.info("💡 Ambiente sem navegador detectado: use autenticação via código.")
+                auth_url, _ = flow.authorization_url(prompt='consent')
+                st.markdown(f"👉 [Clique aqui para abrir o login do Google]({auth_url})")
+                auth_code = st.text_input("Cole aqui o código exibido após o login:")
 
-        try:
-            flow.fetch_token(code=auth_code)
-            creds = flow.credentials
-            service = build("drive", "v3", credentials=creds)
+                if not auth_code:
+                    st.stop()
 
-            # listar pastas
-            st.info("📂 Listando pastas do Drive...")
-            results = service.files().list(
-                q="mimeType='application/vnd.google-apps.folder' and trashed=false",
-                spaces="drive",
-                fields="files(id, name)"
-            ).execute()
-            pastas = results.get("files", [])
-            pasta_nomes = [p["name"] for p in pastas] + ["(Criar nova pasta)"]
-            pasta_escolhida = st.selectbox("Selecione uma pasta de destino:", pasta_nomes)
+                flow.fetch_token(code=auth_code)
+                creds = flow.credentials
 
-            if st.button("🚀 Enviar para o Drive"):
-                if pasta_escolhida == "(Criar nova pasta)":
-                    nova = service.files().create(
-                        body={"name": "imagens_publicas_streamlit", "mimeType": "application/vnd.google-apps.folder"},
-                        fields="id"
-                    ).execute()
-                    folder_id = nova["id"]
-                else:
-                    folder_id = [p["id"] for p in pastas if p["name"] == pasta_escolhida][0]
+                # Salva token
+                with open(token_path, "w") as token_file:
+                    token_file.write(creds.to_json())
 
-                # cria subpasta automática
-                data_label = datetime.now().strftime("%Y-%m-%d")
-                subpasta = service.files().create(
-                    body={"name": data_label, "mimeType": "application/vnd.google-apps.folder", "parents": [folder_id]},
+        # Inicializa serviço do Drive
+        service = build("drive", "v3", credentials=creds)
+
+        results = service.files().list(
+            q="mimeType='application/vnd.google-apps.folder' and trashed=false",
+            spaces="drive",
+            fields="files(id, name)"
+        ).execute()
+
+        pastas = results.get("files", [])
+        pasta_nomes = [p["name"] for p in pastas] + ["(Criar nova pasta)"]
+        pasta_escolhida = st.selectbox("Selecione uma pasta de destino:", pasta_nomes)
+
+        if st.button("🚀 Enviar para o Drive"):
+            if pasta_escolhida == "(Criar nova pasta)":
+                nova = service.files().create(
+                    body={"name": "imagens_publicas_streamlit", "mimeType": "application/vnd.google-apps.folder"},
                     fields="id"
                 ).execute()
-                subpasta_id = subpasta["id"]
+                folder_id = nova["id"]
+            else:
+                folder_id = [p["id"] for p in pastas if p["name"] == pasta_escolhida][0]
 
-                uploads = []
-                for root, _, files in os.walk("conv_out"):
-                    for fn in files:
-                        fp = os.path.join(root, fn)
-                        meta = {"name": fn, "parents": [subpasta_id]}
-                        media = MediaFileUpload(fp, resumable=True)
-                        f = service.files().create(body=meta, media_body=media, fields="id").execute()
-                        uploads.append({
-                            "nome_do_arquivo": fn,
-                            "url_publica": f"https://drive.google.com/uc?export=view&id={f['id']}"
-                        })
+            data_label = datetime.now().strftime("%Y-%m-%d")
+            subpasta = service.files().create(
+                body={"name": data_label, "mimeType": "application/vnd.google-apps.folder", "parents": [folder_id]},
+                fields="id"
+            ).execute()
+            subpasta_id = subpasta["id"]
 
-                service.permissions().create(fileId=subpasta_id, body={"type": "anyone", "role": "reader"}).execute()
-                df = pd.DataFrame(uploads)
-                csv_path = "links_drive.csv"
-                df.to_csv(csv_path, index=False)
+            uploads = []
+            for root, _, files in os.walk("conv_out"):
+                for fn in files:
+                    fp = os.path.join(root, fn)
+                    meta = {"name": fn, "parents": [subpasta_id]}
+                    media = MediaFileUpload(fp, resumable=True)
+                    f = service.files().create(body=meta, media_body=media, fields="id").execute()
+                    uploads.append({
+                        "nome_do_arquivo": fn,
+                        "url_publica": f"https://drive.google.com/uc?export=view&id={f['id']}"
+                    })
 
-                st.success(f"✅ Upload concluído em: {pasta_escolhida}/{data_label}")
-                st.download_button("📥 Baixar CSV de Links",
-                                   data=open(csv_path, "rb").read(),
-                                   file_name="links_drive.csv",
-                                   mime="text/csv")
-        except Exception as e:
-            st.error(f"❌ Erro: {e}")
+            service.permissions().create(fileId=subpasta_id, body={"type": "anyone", "role": "reader"}).execute()
+            df = pd.DataFrame(uploads)
+            csv_path = "links_drive.csv"
+            df.to_csv(csv_path, index=False)
+
+            st.success(f"✅ Upload concluído em: {pasta_escolhida}/{data_label}")
+            st.download_button("📥 Baixar CSV de Links",
+                               data=open(csv_path, "rb").read(),
+                               file_name="links_drive.csv",
+                               mime="text/csv")
+
 
 # =============================
 # ▶️ Execução
