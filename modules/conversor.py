@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-import io, os, shutil, zipfile, base64
+import io, os, shutil, zipfile, base64, csv
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -11,7 +11,6 @@ def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     new_w, new_h = max(1, int(w*scale)), max(1, int(h*scale))
     img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-    # Se bg_color for None → manter transparência
     if bg_color is None:
         canvas = Image.new("RGBA", target_size, (0, 0, 0, 0))
     else:
@@ -23,13 +22,11 @@ def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     canvas.paste(img, off, img)
     return canvas
 
-
 def _play_ping(ping_b64: str):
     st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
 
-
 def render(ping_b64: str):
-    # ====== Banner ======
+    # Banner
     banner_path = "assets/banner_resize.png"
     try:
         with open(banner_path, "rb") as f:
@@ -38,7 +35,7 @@ def render(ping_b64: str):
         st.error("❌ Imagem de banner não encontrada em 'assets/banner_resize.png'")
         st.stop()
 
-    # ====== CSS ======
+    # CSS
     st.markdown("""
     <style>
     body,[class*="css"] {
@@ -84,7 +81,7 @@ def render(ping_b64: str):
     </style>
     """, unsafe_allow_html=True)
 
-    # ====== Hero Section ======
+    # Hero
     st.markdown(f"""
     <div class="hero-container">
         <div class="hero-title">CONVERSOR DE IMAGEM</div>
@@ -94,7 +91,7 @@ def render(ping_b64: str):
     </div>
     """, unsafe_allow_html=True)
 
-    # ====== Configurações ======
+    # Configurações
     col1, col2 = st.columns(2)
     with col1:
         target_label = st.radio("Resolução", ("1080x1080", "1080x1920"), horizontal=True)
@@ -109,18 +106,20 @@ def render(ping_b64: str):
     st.write("---")
     out_format = st.selectbox("Formato de saída", ("png", "jpg", "webp"), index=0)
 
-    # ====== Upload ======
+    # Upload
     files = st.file_uploader("Envie imagens ou ZIP", type=["jpg", "jpeg", "png", "webp", "zip"], accept_multiple_files=True)
     if not files:
         st.info("👆 Envie suas imagens acima para começar.")
         st.stop()
 
+    # Pastas
     INP, OUT = "conv_in", "conv_out"
     shutil.rmtree(INP, ignore_errors=True)
     shutil.rmtree(OUT, ignore_errors=True)
     os.makedirs(INP, exist_ok=True)
     os.makedirs(OUT, exist_ok=True)
 
+    # Extração
     from zipfile import ZipFile, BadZipFile
     for f in files:
         if f.name.lower().endswith(".zip"):
@@ -137,7 +136,6 @@ def render(ping_b64: str):
         st.warning("Nenhuma imagem encontrada.")
         st.stop()
 
-    # ====== Processamento ======
     prog = st.progress(0.0)
     info = st.empty()
     results = []
@@ -159,6 +157,7 @@ def render(ping_b64: str):
             composed.save(bio, format="WEBP", quality=95)
         open(outp, "wb").write(bio.getvalue())
 
+        # Preview
         prev_io = io.BytesIO()
         pv = composed.copy()
         pv.thumbnail((360, 360))
@@ -191,7 +190,20 @@ def render(ping_b64: str):
         with cols[idx % 3]:
             st.image(data, caption=name, use_column_width=True)
 
-    # ====== ZIP ======
+    # CSV simulando upload
+    csv_lines = []
+    for relpath, _, _ in results:
+        final_name = Path(relpath).with_suffix("." + out_format.lower()).as_posix()
+        fake_url = f"https://meu-banco.fake/{final_name}"
+        csv_lines.append((final_name, fake_url))
+
+    csv_io = io.StringIO()
+    writer = csv.writer(csv_io)
+    writer.writerow(["arquivo", "url"])
+    writer.writerows(csv_lines)
+    csv_bytes = io.BytesIO(csv_io.getvalue().encode("utf-8"))
+
+    # ZIP
     zbytes = io.BytesIO()
     with zipfile.ZipFile(zbytes, "w", zipfile.ZIP_DEFLATED) as z:
         for root, _, files in os.walk(OUT):
@@ -199,11 +211,14 @@ def render(ping_b64: str):
                 fp = os.path.join(root, fn)
                 arc = os.path.relpath(fp, OUT)
                 z.write(fp, arc)
+        z.writestr("links_upload.csv", csv_io.getvalue())
     zbytes.seek(0)
 
     st.success("✅ Conversão concluída!")
     _play_ping(ping_b64)
+
     st.download_button("📦 Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
+    st.download_button("📄 Baixar CSV de Uploads", data=csv_bytes, file_name="links_upload.csv", mime="text/csv")
 
 
 if __name__ == "__main__":
