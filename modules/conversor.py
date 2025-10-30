@@ -208,3 +208,58 @@ def render(ping_b64: str):
 
 if __name__ == "__main__":
     render("")
+    
+# =======================
+# 🔽 UPLOAD PARA GOOGLE DRIVE + CSV
+# =======================
+import pandas as pd
+from google.colab import drive
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google.colab import auth
+import os
+
+with st.expander("☁️ Enviar imagens convertidas para o Google Drive"):
+    st.markdown("Após converter suas imagens, você pode enviá-las para o Google Drive e gerar um CSV com links públicos.")
+
+    if st.button("🚀 Fazer upload para o Google Drive"):
+        try:
+            # Autenticação
+            st.info("🔗 Conectando ao Google Drive...")
+            auth.authenticate_user()
+            drive.mount('/content/drive')
+            service = build('drive', 'v3')
+
+            # Cria pasta no Drive
+            folder_name = "imagens_publicas_streamlit"
+            folder_metadata = {'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder'}
+            folder = service.files().create(body=folder_metadata, fields='id').execute()
+            folder_id = folder.get('id')
+
+            st.success(f"📁 Pasta criada: {folder_name}")
+
+            # Upload das imagens convertidas
+            uploads = []
+            for root, _, files in os.walk("conv_out"):
+                for fn in files:
+                    filepath = os.path.join(root, fn)
+                    file_metadata = {'name': fn, 'parents': [folder_id]}
+                    media = MediaFileUpload(filepath, resumable=True)
+                    file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+                    uploads.append({
+                        "nome_do_arquivo": fn,
+                        "url_publica": f"https://drive.google.com/uc?export=view&id={file['id']}"
+                    })
+            # Torna a pasta pública
+            service.permissions().create(fileId=folder_id, body={'type': 'anyone', 'role': 'reader'}).execute()
+
+            # Gera CSV com os links públicos
+            df = pd.DataFrame(uploads)
+            csv_path = "links_drive.csv"
+            df.to_csv(csv_path, index=False)
+
+            st.success("✅ Upload concluído e CSV gerado!")
+            st.download_button("📥 Baixar CSV de Links", data=open(csv_path, "rb").read(), file_name="links_drive.csv", mime="text/csv")
+
+        except Exception as e:
+            st.error(f"❌ Erro: {e}")
