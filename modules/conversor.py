@@ -3,17 +3,21 @@ from PIL import Image
 import io, os, shutil, zipfile, base64
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import pandas as pd
 
-# === Funções auxiliares ===
+# ========================================
+# 🔧 Funções auxiliares
+# ========================================
 def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     w, h = img.size
-    scale = min(target_size[0]/w, target_size[1]/h)
-    new_w, new_h = max(1, int(w*scale)), max(1, int(h*scale))
+    scale = min(target_size[0] / w, target_size[1] / h)
+    new_w, new_h = max(1, int(w * scale)), max(1, int(h * scale))
     img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    canvas = Image.new("RGBA" if bg_color is None else "RGB",
-                       target_size, (0,0,0,0) if bg_color is None else bg_color)
-    off = ((target_size[0]-new_w)//2, (target_size[1]-new_h)//2)
-    if img.mode != "RGBA": img = img.convert("RGBA")
+    canvas = Image.new("RGBA" if bg_color is None else "RGB", target_size,
+                       (0, 0, 0, 0) if bg_color is None else bg_color)
+    off = ((target_size[0] - new_w) // 2, (target_size[1] - new_h) // 2)
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
     canvas.paste(img, off, img)
     return canvas
 
@@ -21,7 +25,10 @@ def _play_ping(ping_b64: str):
     st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>',
                 unsafe_allow_html=True)
 
-# === Interface principal ===
+
+# ========================================
+# 🧭 Interface principal
+# ========================================
 def render(ping_b64: str):
     # ----- Banner -----
     banner_path = "assets/banner_resize.png"
@@ -44,10 +51,13 @@ def render(ping_b64: str):
     </style>
     """, unsafe_allow_html=True)
 
+    # ----- Hero Section -----
     st.markdown(f"""
     <div class="hero-container">
-      <div class="hero-title">CONVERSOR DE IMAGEM</div>
-      <div class="hero"><img src="data:image/png;base64,{b64_banner}" class="bg"></div>
+        <div class="hero-title">CONVERSOR DE IMAGEM</div>
+        <div class="hero">
+            <img src="data:image/png;base64,{b64_banner}" class="bg" alt="banner">
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -55,121 +65,147 @@ def render(ping_b64: str):
     col1, col2 = st.columns(2)
     with col1:
         target_label = st.radio("Resolução", ("1080x1080", "1080x1920"), horizontal=True)
-        target = (1080,1080) if target_label=="1080x1080" else (1080,1920)
+        target = (1080, 1080) if target_label == "1080x1080" else (1080, 1920)
     with col2:
         usar_cor = st.toggle("Usar cor de fundo personalizada", value=False)
         bg_rgb = None
         if usar_cor:
             hexcor = st.color_picker("Cor de fundo", "#f2f2f2")
-            bg_rgb = tuple(int(hexcor.strip("#")[i:i+2],16) for i in (0,2,4))
+            bg_rgb = tuple(int(hexcor.strip("#")[i:i+2], 16) for i in (0, 2, 4))
 
     st.write("---")
-    out_format = st.selectbox("Formato de saída", ("png","jpg","webp"), index=0)
+    out_format = st.selectbox("Formato de saída", ("png", "jpg", "webp"), index=0)
 
     # ----- Upload -----
-    files = st.file_uploader("Envie imagens ou ZIP",
-                             type=["jpg","jpeg","png","webp","zip"],
-                             accept_multiple_files=True)
+    files = st.file_uploader("Envie imagens ou ZIP", type=["jpg", "jpeg", "png", "webp", "zip"], accept_multiple_files=True)
     if not files:
         st.info("👆 Envie suas imagens acima para começar.")
         st.stop()
 
-    INP, OUT = "conv_in","conv_out"
+    INP, OUT = "conv_in", "conv_out"
     shutil.rmtree(INP, ignore_errors=True)
     shutil.rmtree(OUT, ignore_errors=True)
-    os.makedirs(INP, exist_ok=True); os.makedirs(OUT, exist_ok=True)
+    os.makedirs(INP, exist_ok=True)
+    os.makedirs(OUT, exist_ok=True)
 
     from zipfile import ZipFile, BadZipFile
     for f in files:
         if f.name.lower().endswith(".zip"):
             try:
-                with ZipFile(io.BytesIO(f.read())) as z: z.extractall(INP)
-            except BadZipFile: st.error(f"ZIP inválido: {f.name}")
-        else: open(os.path.join(INP,f.name),"wb").write(f.read())
+                with ZipFile(io.BytesIO(f.read())) as z:
+                    z.extractall(INP)
+            except BadZipFile:
+                st.error(f"ZIP inválido: {f.name}")
+        else:
+            open(os.path.join(INP, f.name), "wb").write(f.read())
 
-    paths = [p for p in Path(INP).rglob("*")
-             if p.suffix.lower() in (".jpg",".jpeg",".png",".webp")]
+    paths = [p for p in Path(INP).rglob("*") if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")]
     if not paths:
-        st.warning("Nenhuma imagem encontrada."); st.stop()
+        st.warning("Nenhuma imagem encontrada.")
+        st.stop()
 
     # ----- Processamento -----
-    prog = st.progress(0.0); info = st.empty(); results = []
+    prog = st.progress(0.0)
+    info = st.empty()
+    results = []
+
     def worker(p: Path):
         rel = p.relative_to(INP)
         img = Image.open(p).convert("RGBA")
         composed = _resize_and_center(img, target, bg_color=bg_rgb)
-        outp = (Path(OUT)/rel).with_suffix("."+out_format.lower())
+        outp = (Path(OUT) / rel).with_suffix("." + out_format.lower())
         os.makedirs(outp.parent, exist_ok=True)
         composed.save(outp, format=out_format.upper())
-        prev_io = io.BytesIO(); pv=composed.copy(); pv.thumbnail((360,360))
+        prev_io = io.BytesIO()
+        pv = composed.copy()
+        pv.thumbnail((360, 360))
         pv.save(prev_io, format=out_format.upper())
-        mime=f"image/{out_format.lower()}"
+        mime = f"image/{out_format.lower()}"
         return rel.as_posix(), prev_io.getvalue(), mime
 
     with ThreadPoolExecutor(max_workers=8) as ex:
-        fut=[ex.submit(worker,p) for p in paths]; tot=len(fut)
-        for i,f in enumerate(as_completed(fut),1):
-            try: results.append(f.result())
-            except Exception as e: st.error(f"Erro ao processar: {e}")
-            prog.progress(i/tot); info.info(f"Processado {i}/{tot}")
+        fut = [ex.submit(worker, p) for p in paths]
+        tot = len(fut)
+        for i, f in enumerate(as_completed(fut), 1):
+            try:
+                results.append(f.result())
+            except Exception as e:
+                st.error(f"Erro ao processar: {e}")
+            prog.progress(i / tot)
+            info.info(f"Processado {i}/{tot}")
 
-    st.write("---"); st.subheader("Pré-visualizações")
-    cols=st.columns(3)
-    for idx,(name,data,mime) in enumerate(results[:6]):
-        with cols[idx%3]: st.image(data, caption=name, use_column_width=True)
+    st.write("---")
+    st.subheader("Pré-visualizações")
+    cols = st.columns(3)
+    for idx, (name, data, mime) in enumerate(results[:6]):
+        with cols[idx % 3]:
+            st.image(data, caption=name, use_column_width=True)
 
     # ----- ZIP -----
-    zbytes=io.BytesIO()
-    with zipfile.ZipFile(zbytes,"w",zipfile.ZIP_DEFLATED) as z:
-        for root,_,files in os.walk(OUT):
-            for fn in files: z.write(os.path.join(root,fn),
-                                     os.path.relpath(os.path.join(root,fn),OUT))
+    zbytes = io.BytesIO()
+    with zipfile.ZipFile(zbytes, "w", zipfile.ZIP_DEFLATED) as z:
+        for root, _, files in os.walk(OUT):
+            for fn in files:
+                fp = os.path.join(root, fn)
+                arc = os.path.relpath(fp, OUT)
+                z.write(fp, arc)
     zbytes.seek(0)
+
     st.success("✅ Conversão concluída!")
     _play_ping(ping_b64)
-    st.download_button("📦 Baixar imagens convertidas",
-                       data=zbytes,
-                       file_name=f"convertidas_{target_label}.zip",
-                       mime="application/zip")
+    st.download_button("📦 Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
 
-    # ====================================================
-    # ☁️ SEÇÃO OPCIONAL: upload ao Google Drive + CSV
-    # ====================================================
+    # ===========================================
+    # ☁️ UPLOAD PARA GOOGLE DRIVE (OAuth Login)
+    # ===========================================
     with st.expander("☁️ Enviar imagens convertidas para o Google Drive"):
-        st.markdown("Após converter, envie suas imagens para o Google Drive e gere um CSV com links públicos.")
-        if st.button("🚀 Fazer upload para o Drive"):
+        st.markdown("Faça login com sua conta Google e envie os arquivos convertidos diretamente para o seu Drive.")
+
+        if st.button("🚀 Fazer upload para o Google Drive"):
             try:
-                from google.colab import drive, auth
+                from google_auth_oauthlib.flow import InstalledAppFlow
                 from googleapiclient.discovery import build
                 from googleapiclient.http import MediaFileUpload
-                import pandas as pd
-                st.info("Conectando ao Drive...")
-                auth.authenticate_user(); drive.mount('/content/drive')
-                service = build('drive','v3')
-                folder_meta={'name':'imagens_publicas_streamlit',
-                             'mimeType':'application/vnd.google-apps.folder'}
-                folder=service.files().create(body=folder_meta,fields='id').execute()
-                folder_id=folder['id']
-                uploads=[]
-                for root,_,files in os.walk(OUT):
+
+                SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+                flow = InstalledAppFlow.from_client_secrets_file("credentials_oauth.json", SCOPES)
+                creds = flow.run_local_server(port=0)
+                service = build("drive", "v3", credentials=creds)
+
+                folder_metadata = {"name": "imagens_publicas_streamlit", "mimeType": "application/vnd.google-apps.folder"}
+                folder = service.files().create(body=folder_metadata, fields="id").execute()
+                folder_id = folder.get("id")
+
+                st.info("📁 Pasta criada no seu Drive!")
+
+                uploads = []
+                for root, _, files in os.walk("conv_out"):
                     for fn in files:
-                        fp=os.path.join(root,fn)
-                        meta={'name':fn,'parents':[folder_id]}
-                        media=MediaFileUpload(fp,resumable=True)
-                        f=service.files().create(body=meta,media_body=media,fields='id').execute()
-                        uploads.append({"nome_do_arquivo":fn,
-                                        "url_publica":f"https://drive.google.com/uc?export=view&id={f['id']}"})
-                service.permissions().create(fileId=folder_id,body={'type':'anyone','role':'reader'}).execute()
-                import pandas as pd
-                df=pd.DataFrame(uploads)
-                csv_path="links_drive.csv"; df.to_csv(csv_path,index=False)
+                        fp = os.path.join(root, fn)
+                        meta = {"name": fn, "parents": [folder_id]}
+                        media = MediaFileUpload(fp, resumable=True)
+                        file = service.files().create(body=meta, media_body=media, fields="id").execute()
+                        uploads.append({
+                            "nome_do_arquivo": fn,
+                            "url_publica": f"https://drive.google.com/uc?export=view&id={file['id']}"
+                        })
+
+                # Permissão pública
+                service.permissions().create(fileId=folder_id, body={"type": "anyone", "role": "reader"}).execute()
+
+                df = pd.DataFrame(uploads)
+                csv_path = "links_drive.csv"
+                df.to_csv(csv_path, index=False)
+
                 st.success("✅ Upload concluído e CSV gerado!")
-                st.download_button("📥 Baixar CSV de Links",
-                                   data=open(csv_path,"rb").read(),
+                st.download_button("📥 Baixar CSV de Links", data=open(csv_path, "rb").read(),
                                    file_name="links_drive.csv", mime="text/csv")
             except Exception as e:
                 st.error(f"❌ Erro: {e}")
 
-# === Executa app ===
+
+# ========================================
+# ▶️ Execução
+# ========================================
 if __name__ == "__main__":
     render("")
