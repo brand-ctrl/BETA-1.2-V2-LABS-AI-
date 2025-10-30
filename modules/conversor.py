@@ -1,29 +1,14 @@
-# ==========================================
-# 🔧 Instala pacotes automaticamente
-# ==========================================
-import subprocess, sys
-for pkg in [
-    "google-auth-oauthlib",
-    "google-api-python-client",
-    "pandas",
-    "Pillow",
-    "streamlit",
-]:
-    subprocess.run([sys.executable, "-m", "pip", "install", "-q", pkg])
-
-# ==========================================
-# 📦 Imports
-# ==========================================
 import streamlit as st
 from PIL import Image
 import io, os, shutil, zipfile, base64
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 import pandas as pd
 
-# ==========================================
-# 🧠 Funções auxiliares
-# ==========================================
+# =============================
+# 🎨 Função auxiliar de redimensionamento
+# =============================
 def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     w, h = img.size
     scale = min(target_size[0] / w, target_size[1] / h)
@@ -37,44 +22,29 @@ def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     canvas.paste(img, off, img)
     return canvas
 
-
+# =============================
+# 🔊 Som de conclusão
+# =============================
 def _play_ping(ping_b64: str):
     st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
 
-
-# ==========================================
-# 🖼️ Interface principal
-# ==========================================
+# =============================
+# 🧠 App principal
+# =============================
 def render(ping_b64: str):
-    # ----- Banner -----
-    banner_path = "assets/banner_resize.png"
-    try:
-        with open(banner_path, "rb") as f:
-            b64_banner = base64.b64encode(f.read()).decode("utf-8")
-    except FileNotFoundError:
-        st.error("❌ Imagem de banner não encontrada em 'assets/banner_resize.png'")
-        st.stop()
+    st.set_page_config(page_title="Conversor + Drive", layout="wide")
 
-    # ----- CSS -----
+    # ----- Banner -----
     st.markdown("""
     <style>
     body,[class*="css"]{background-color:#f9fafb!important;color:#111!important;font-family:'Inter',sans-serif;}
     .stApp header,.stApp [data-testid="stHeader"],.block-container{background:none!important;box-shadow:none!important;border:none!important;}
     .hero-container{display:flex;flex-direction:column;align-items:flex-start;margin-left:10%;margin-top:20px;}
     .hero-title{font-size:34px;font-weight:800;margin-bottom:32px;color:#111;}
-    .hero{position:relative;width:500px;height:500px;border-radius:20px;overflow:hidden;display:flex;justify-content:center;align-items:center;}
-    .hero img.bg{width:500px;height:500px;object-fit:cover;border-radius:18px;box-shadow:0 2px 12px rgba(0,0,0,0.08);}
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="hero-container">
-        <div class="hero-title">CONVERSOR DE IMAGEM</div>
-        <div class="hero">
-            <img src="data:image/png;base64,{b64_banner}" class="bg" alt="banner">
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<div class='hero-title'>🖼️ CONVERSOR DE IMAGEM + UPLOAD GOOGLE DRIVE</div>", unsafe_allow_html=True)
 
     # ----- Configurações -----
     col1, col2 = st.columns(2)
@@ -167,11 +137,13 @@ def render(ping_b64: str):
     zbytes.seek(0)
 
     st.success("✅ Conversão concluída!")
-    _play_ping(ping_b64)
-    st.download_button("📦 Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
+    st.download_button("📦 Baixar imagens convertidas",
+                       data=zbytes,
+                       file_name=f"convertidas_{target_label}.zip",
+                       mime="application/zip")
 
     # ==========================================================
-    # ☁️ UPLOAD PARA GOOGLE DRIVE (com seleção de pasta)
+    # ☁️ UPLOAD PARA GOOGLE DRIVE (com login via código)
     # ==========================================================
     with st.expander("☁️ Enviar imagens convertidas para o Google Drive"):
         st.markdown("Faça login com sua conta Google e escolha uma pasta para salvar os arquivos convertidos.")
@@ -181,78 +153,82 @@ def render(ping_b64: str):
             st.warning("⚠️ Envie seu arquivo `credentials_oauth.json` (OAuth 2.0 Desktop App) para o diretório do app.")
             st.stop()
 
-        if st.button("🔐 Conectar ao Google Drive"):
-            try:
-                from google_auth_oauthlib.flow import InstalledAppFlow
-                from googleapiclient.discovery import build
-                from googleapiclient.http import MediaFileUpload
+        from google_auth_oauthlib.flow import InstalledAppFlow
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaFileUpload
 
-                SCOPES = ["https://www.googleapis.com/auth/drive.file"]
-                flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
-                st.info("💡 Ambiente sem navegador detectado: use autenticação via código.")
-st.write("👉 Copie o link abaixo, abra no seu navegador, autorize o acesso e cole o código retornado aqui:")
+        SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+        flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
 
-auth_url, _ = flow.authorization_url(prompt='consent')
-st.write(f"[Abrir link de autorização]({auth_url})")
+        st.info("💡 Ambiente sem navegador detectado: use autenticação via código.")
+        auth_url, _ = flow.authorization_url(prompt='consent')
+        st.markdown(f"👉 [Clique aqui para abrir o login do Google]({auth_url})")
+        auth_code = st.text_input("Cole aqui o código exibido após o login:")
 
-auth_code = st.text_input("Cole aqui o código gerado após o login:")
+        if not auth_code:
+            st.stop()
 
-if auth_code:
-    flow.fetch_token(code=auth_code)
-    creds = flow.credentials
-    st.success("✅ Autenticação concluída com sucesso!")
-else:
-    st.stop()
+        try:
+            flow.fetch_token(code=auth_code)
+            creds = flow.credentials
+            service = build("drive", "v3", credentials=creds)
 
-                service = build("drive", "v3", credentials=creds)
+            # listar pastas
+            st.info("📂 Listando pastas do Drive...")
+            results = service.files().list(
+                q="mimeType='application/vnd.google-apps.folder' and trashed=false",
+                spaces="drive",
+                fields="files(id, name)"
+            ).execute()
+            pastas = results.get("files", [])
+            pasta_nomes = [p["name"] for p in pastas] + ["(Criar nova pasta)"]
+            pasta_escolhida = st.selectbox("Selecione uma pasta de destino:", pasta_nomes)
 
-                # listar pastas existentes
-                st.info("🔎 Buscando pastas do Drive...")
-                results = service.files().list(
-                    q="mimeType='application/vnd.google-apps.folder' and trashed=false",
-                    spaces="drive",
-                    fields="files(id, name)"
+            if st.button("🚀 Enviar para o Drive"):
+                if pasta_escolhida == "(Criar nova pasta)":
+                    nova = service.files().create(
+                        body={"name": "imagens_publicas_streamlit", "mimeType": "application/vnd.google-apps.folder"},
+                        fields="id"
+                    ).execute()
+                    folder_id = nova["id"]
+                else:
+                    folder_id = [p["id"] for p in pastas if p["name"] == pasta_escolhida][0]
+
+                # cria subpasta automática
+                data_label = datetime.now().strftime("%Y-%m-%d")
+                subpasta = service.files().create(
+                    body={"name": data_label, "mimeType": "application/vnd.google-apps.folder", "parents": [folder_id]},
+                    fields="id"
                 ).execute()
-                pastas = results.get("files", [])
-                pasta_nomes = [p["name"] for p in pastas] + ["(Criar nova pasta)"]
-                pasta_escolhida = st.selectbox("Selecione uma pasta de destino:", pasta_nomes)
+                subpasta_id = subpasta["id"]
 
-                if st.button("🚀 Enviar arquivos convertidos"):
-                    if pasta_escolhida == "(Criar nova pasta)":
-                        nova = service.files().create(
-                            body={"name": "imagens_publicas_streamlit", "mimeType": "application/vnd.google-apps.folder"},
-                            fields="id"
-                        ).execute()
-                        folder_id = nova["id"]
-                    else:
-                        folder_id = [p["id"] for p in pastas if p["name"] == pasta_escolhida][0]
+                uploads = []
+                for root, _, files in os.walk("conv_out"):
+                    for fn in files:
+                        fp = os.path.join(root, fn)
+                        meta = {"name": fn, "parents": [subpasta_id]}
+                        media = MediaFileUpload(fp, resumable=True)
+                        f = service.files().create(body=meta, media_body=media, fields="id").execute()
+                        uploads.append({
+                            "nome_do_arquivo": fn,
+                            "url_publica": f"https://drive.google.com/uc?export=view&id={f['id']}"
+                        })
 
-                    uploads = []
-                    for root, _, files in os.walk("conv_out"):
-                        for fn in files:
-                            fp = os.path.join(root, fn)
-                            meta = {"name": fn, "parents": [folder_id]}
-                            media = MediaFileUpload(fp, resumable=True)
-                            f = service.files().create(body=meta, media_body=media, fields="id").execute()
-                            uploads.append({
-                                "nome_do_arquivo": fn,
-                                "url_publica": f"https://drive.google.com/uc?export=view&id={f['id']}"
-                            })
+                service.permissions().create(fileId=subpasta_id, body={"type": "anyone", "role": "reader"}).execute()
+                df = pd.DataFrame(uploads)
+                csv_path = "links_drive.csv"
+                df.to_csv(csv_path, index=False)
 
-                    service.permissions().create(fileId=folder_id, body={"type": "anyone", "role": "reader"}).execute()
-                    df = pd.DataFrame(uploads)
-                    csv_path = "links_drive.csv"
-                    df.to_csv(csv_path, index=False)
+                st.success(f"✅ Upload concluído em: {pasta_escolhida}/{data_label}")
+                st.download_button("📥 Baixar CSV de Links",
+                                   data=open(csv_path, "rb").read(),
+                                   file_name="links_drive.csv",
+                                   mime="text/csv")
+        except Exception as e:
+            st.error(f"❌ Erro: {e}")
 
-                    st.success("✅ Upload concluído e CSV gerado!")
-                    st.download_button("📥 Baixar CSV de Links", data=open(csv_path, "rb").read(),
-                                       file_name="links_drive.csv", mime="text/csv")
-            except Exception as e:
-                st.error(f"❌ Erro: {e}")
-
-
-# ==========================================
+# =============================
 # ▶️ Execução
-# ==========================================
+# =============================
 if __name__ == "__main__":
     render("")
