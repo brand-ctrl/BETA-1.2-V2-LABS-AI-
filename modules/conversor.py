@@ -1,37 +1,17 @@
 import streamlit as st
 from PIL import Image
-import io, os, shutil, zipfile, base64, csv, boto3
+import io, os, shutil, zipfile, base64
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# ========== CONFIGURAÇÃO AWS ==========
-AWS_ACCESS_KEY_ID = "SUA_ACCESS_KEY"
-AWS_SECRET_ACCESS_KEY = "SUA_SECRET_KEY"
-AWS_REGION = "us-east-1"
-BUCKET_NAME = "seu-nome-do-bucket"
-
-# Cria cliente S3
-s3 = boto3.client(
-    "s3",
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    region_name=AWS_REGION
-)
-
-def upload_to_s3(file_path, key):
-    """Faz upload para S3 e retorna URL pública."""
-    s3.upload_file(file_path, BUCKET_NAME, key, ExtraArgs={"ACL": "public-read"})
-    url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{key}"
-    return url
-
-
-# ========== FUNÇÕES DE IMAGEM ==========
 def _resize_and_center(img: Image.Image, target_size, bg_color=None):
+    """Redimensiona e centraliza a imagem, opcionalmente com cor de fundo."""
     w, h = img.size
     scale = min(target_size[0]/w, target_size[1]/h)
     new_w, new_h = max(1, int(w*scale)), max(1, int(h*scale))
     img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
+    # Se bg_color for None → manter transparência
     if bg_color is None:
         canvas = Image.new("RGBA", target_size, (0, 0, 0, 0))
     else:
@@ -44,11 +24,77 @@ def _resize_and_center(img: Image.Image, target_size, bg_color=None):
     return canvas
 
 
-# ========== INTERFACE ==========
-def render():
-    st.set_page_config(page_title="Conversor e Upload S3", page_icon="📤", layout="wide")
-    st.title("📤 Conversor de Imagem + Upload S3")
+def _play_ping(ping_b64: str):
+    st.markdown(f'<audio autoplay src="data:audio/wav;base64,{ping_b64}"></audio>', unsafe_allow_html=True)
 
+
+def render(ping_b64: str):
+    # ====== Banner ======
+    banner_path = "assets/banner_resize.png"
+    try:
+        with open(banner_path, "rb") as f:
+            b64_banner = base64.b64encode(f.read()).decode("utf-8")
+    except FileNotFoundError:
+        st.error("❌ Imagem de banner não encontrada em 'assets/banner_resize.png'")
+        st.stop()
+
+    # ====== CSS ======
+    st.markdown("""
+    <style>
+    body,[class*="css"] {
+        background-color: #f9fafb !important;
+        color: #111 !important;
+        font-family: 'Inter', sans-serif;
+    }
+    .stApp header, .stApp [data-testid="stHeader"], .block-container {
+        background: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    .hero-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-left: 10%;
+        margin-top: 20px;
+    }
+    .hero-title {
+        font-size: 34px;
+        font-weight: 800;
+        margin-bottom: 32px;
+        color: #111;
+    }
+    .hero {
+        position: relative;
+        width: 500px;
+        height: 500px;
+        border-radius: 20px;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .hero img.bg {
+        width: 500px;
+        height: 500px;
+        object-fit: cover;
+        border-radius: 18px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ====== Hero Section ======
+    st.markdown(f"""
+    <div class="hero-container">
+        <div class="hero-title">CONVERSOR DE IMAGEM</div>
+        <div class="hero">
+            <img src="data:image/png;base64,{b64_banner}" class="bg" alt="banner">
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ====== Configurações ======
     col1, col2 = st.columns(2)
     with col1:
         target_label = st.radio("Resolução", ("1080x1080", "1080x1920"), horizontal=True)
@@ -63,6 +109,7 @@ def render():
     st.write("---")
     out_format = st.selectbox("Formato de saída", ("png", "jpg", "webp"), index=0)
 
+    # ====== Upload ======
     files = st.file_uploader("Envie imagens ou ZIP", type=["jpg", "jpeg", "png", "webp", "zip"], accept_multiple_files=True)
     if not files:
         st.info("👆 Envie suas imagens acima para começar.")
@@ -90,6 +137,7 @@ def render():
         st.warning("Nenhuma imagem encontrada.")
         st.stop()
 
+    # ====== Processamento ======
     prog = st.progress(0.0)
     info = st.empty()
     results = []
@@ -111,40 +159,39 @@ def render():
             composed.save(bio, format="WEBP", quality=95)
         open(outp, "wb").write(bio.getvalue())
 
-        # Upload para S3
-        s3_key = f"{rel.parent.as_posix()}/{outp.name}" if rel.parent != Path('.') else outp.name
-        url = upload_to_s3(str(outp), s3_key)
+        prev_io = io.BytesIO()
+        pv = composed.copy()
+        pv.thumbnail((360, 360))
+        if out_format.lower() == "jpg":
+            pv.convert("RGB").save(prev_io, format="JPEG", quality=85)
+            mime = "image/jpeg"
+        elif out_format.lower() == "png":
+            pv.save(prev_io, format="PNG")
+            mime = "image/png"
+        else:
+            pv.save(prev_io, format="WEBP", quality=90)
+            mime = "image/webp"
+        return rel.as_posix(), prev_io.getvalue(), mime
 
-        folder_name = rel.parent.as_posix() if rel.parent != Path('.') else "(raiz)"
-        return rel.as_posix(), url, folder_name
-
-    with ThreadPoolExecutor(max_workers=6) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         fut = [ex.submit(worker, p) for p in paths]
         tot = len(fut)
         for i, f in enumerate(as_completed(fut), 1):
             try:
                 results.append(f.result())
             except Exception as e:
-                st.error(f"Erro: {e}")
+                st.error(f"Erro ao processar: {e}")
             prog.progress(i / tot)
             info.info(f"Processado {i}/{tot}")
 
     st.write("---")
-    st.subheader("Pré-visualizações (até 6)")
+    st.subheader("Pré-visualizações")
     cols = st.columns(3)
-    for idx, (name, url, folder) in enumerate(results[:6]):
+    for idx, (name, data, mime) in enumerate(results[:6]):
         with cols[idx % 3]:
-            st.image(url, caption=f"{folder}/{Path(name).name}", use_column_width=True)
+            st.image(data, caption=name, use_column_width=True)
 
-    # CSV
-    csv_io = io.StringIO()
-    writer = csv.writer(csv_io)
-    writer.writerow(["pasta", "arquivo", "url"])
-    for name, url, folder in results:
-        writer.writerow([folder, Path(name).name, url])
-    csv_bytes = io.BytesIO(csv_io.getvalue().encode("utf-8"))
-
-    # ZIP
+    # ====== ZIP ======
     zbytes = io.BytesIO()
     with zipfile.ZipFile(zbytes, "w", zipfile.ZIP_DEFLATED) as z:
         for root, _, files in os.walk(OUT):
@@ -152,13 +199,12 @@ def render():
                 fp = os.path.join(root, fn)
                 arc = os.path.relpath(fp, OUT)
                 z.write(fp, arc)
-        z.writestr("links_upload.csv", csv_io.getvalue())
     zbytes.seek(0)
 
-    st.success("✅ Conversão e upload concluídos!")
-    st.download_button("📦 Baixar imagens convertidas (ZIP + CSV)", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
-    st.download_button("📄 Baixar CSV de Uploads", data=csv_bytes, file_name="links_upload.csv", mime="text/csv")
+    st.success("✅ Conversão concluída!")
+    _play_ping(ping_b64)
+    st.download_button("📦 Baixar imagens convertidas", data=zbytes, file_name=f"convertidas_{target_label}.zip", mime="application/zip")
 
 
 if __name__ == "__main__":
-    render()
+    render("")
